@@ -107,3 +107,76 @@ func TestLotLifecycle(t *testing.T) {
 		t.Fatalf("after reopen: got %v", e)
 	}
 }
+
+func TestPollTellsNewsFromNoNews(t *testing.T) {
+	c := &clock{t: time.Unix(0, 0)}
+	h := newTestHouse(c)
+
+	h.Poll("bff-1") // first poll from a client: news
+	h.Poll("bff-1") // nothing changed: empty
+	if _, err := h.PlaceBid("a", "ada", 10); err != nil {
+		t.Fatal(err)
+	}
+	h.Poll("bff-1") // saw the bid: news
+	a := h.Poll("bff-2")
+
+	if got := a.GetLoad().GetPollsPerSecond(); got != 4/loadWindow.Seconds() {
+		t.Fatalf("polls per second: got %v, want %v", got, 4/loadWindow.Seconds())
+	}
+	if got := a.GetLoad().GetEmptyPollRatio(); got != 0.25 {
+		t.Fatalf("empty poll ratio: got %v, want 0.25", got)
+	}
+
+	c.advance(loadWindow + time.Second)
+	if got := h.Snapshot().GetLoad().GetPollsPerSecond(); got != 0 {
+		t.Fatalf("polls per second after the window: got %v, want 0", got)
+	}
+}
+
+func TestBidAgeIsPerSnapshot(t *testing.T) {
+	c := &clock{t: time.Unix(0, 0)}
+	h := newTestHouse(c)
+	if _, err := h.PlaceBid("a", "ada", 10); err != nil {
+		t.Fatal(err)
+	}
+
+	c.advance(1500 * time.Millisecond)
+	first := h.Snapshot()
+	c.advance(time.Second)
+	second := h.Snapshot()
+
+	if got := first.GetRecentBids()[0].GetAgeMs(); got != 1500 {
+		t.Fatalf("first snapshot: got %dms, want 1500ms", got)
+	}
+	if got := second.GetHighestBid().GetAgeMs(); got != 2500 {
+		t.Fatalf("second snapshot: got %dms, want 2500ms", got)
+	}
+}
+
+func TestLoadChangedIsNotNews(t *testing.T) {
+	c := &clock{t: time.Unix(0, 0)}
+	h := newTestHouse(c)
+	events, stop := h.Watch()
+	defer stop()
+	<-events // snapshot
+
+	h.Poll("bff-1")
+	c.advance(loadEvery)
+	h.Tick()
+	if e := <-events; e.GetKind() != auctionv1.WatchAuctionResponse_KIND_LOAD_CHANGED || e.GetAuction().GetLoad().GetPollsPerSecond() == 0 {
+		t.Fatalf("after polling started: got %v", e)
+	}
+
+	a := h.Poll("bff-1") // only the load figure changed since the last poll
+	if got := a.GetLoad().GetEmptyPollRatio(); got != 0.5 {
+		t.Fatalf("empty poll ratio: got %v, want 0.5", got)
+	}
+
+	c.advance(loadEvery / 2)
+	h.Tick()
+	select {
+	case e := <-events:
+		t.Fatalf("load announced again within loadEvery: got %v", e.GetKind())
+	default:
+	}
+}

@@ -1,9 +1,10 @@
 import { onScopeDispose, reactive, shallowRef, watch, type Ref } from 'vue'
-import { getAuction, type Auction, type AuctionEvent } from './api'
+import { bidKey, getAuction, type Auction, type AuctionEvent } from './api'
 
 export type Transport = 'poll' | 'stream'
 
-export const POLL_INTERVAL_MS = 2000
+export const POLL_INTERVALS_MS = [500, 2000, 5000] as const
+export const DEFAULT_POLL_INTERVAL_MS = 2000
 
 /** One dot on the transport timeline: a poll response or a stream event. */
 export interface Tick {
@@ -14,22 +15,34 @@ export interface Tick {
 /**
  * Keeps `auction` up to date, either by polling GET /api/auction (unary gRPC behind the BFF)
  * or by listening to GET /api/auction/stream (server-streaming gRPC, translated to SSE).
+ *
+ * It also measures how late every bid arrived here: the server stamps each bid with its age
+ * when it sends it, so no clock has to agree with another.
  */
-export function useAuctionFeed (transport: Ref<Transport>) {
+export function useAuctionFeed (transport: Ref<Transport>, pollIntervalMs: Ref<number>) {
   const auction = shallowRef<Auction | null>(null)
   const receivedAt = shallowRef(0)
   const error = shallowRef<string | null>(null)
-  const stats = reactive({ requests: 0, messages: 0, lastKind: '' as string, ticks: [] as Tick[] })
+  const stats = reactive({ requests: 0, messages: 0, lastKind: '' as string, ticks: [] as Tick[], delays: [] as number[] })
+  /** Delay per bid, the first time this page saw it. `null`: it was already there when the page loaded. */
+  const seenAfter = reactive(new Map<string, number | null>())
 
   let stop = () => {}
 
-  function apply (next: Auction) {
+  function apply (next: Auction, fromFeed = true) {
     const previous = auction.value
     const changed = !previous
       || previous.lot.id !== next.lot.id
       || previous.status !== next.status
       || previous.bidCount !== next.bidCount
       || previous.watchers !== next.watchers
+    if (previous && previous.lot.id !== next.lot.id) seenAfter.clear()
+    for (const bid of next.recentBids) {
+      if (seenAfter.has(bidKey(bid))) continue
+      seenAfter.set(bidKey(bid), previous ? bid.ageMs : null)
+      // Your own bids come back in the PlaceBid response: only count what the feed delivered.
+      if (previous && fromFeed) stats.delays = [...stats.delays.slice(-19), bid.ageMs]
+    }
     auction.value = next
     receivedAt.value = Date.now()
     return changed
@@ -40,7 +53,7 @@ export function useAuctionFeed (transport: Ref<Transport>) {
     stats.ticks = [...stats.ticks.filter(t => now - t.at < 30_000), { at: now, changed }]
   }
 
-  function startPolling () {
+  function startPolling (intervalMs: number) {
     let cancelled = false
     async function poll () {
       stats.requests++
@@ -58,7 +71,7 @@ export function useAuctionFeed (transport: Ref<Transport>) {
       }
     }
     poll()
-    const timer = setInterval(poll, POLL_INTERVAL_MS)
+    const timer = setInterval(poll, intervalMs)
     return () => {
       cancelled = true
       clearInterval(timer)
@@ -85,16 +98,17 @@ export function useAuctionFeed (transport: Ref<Transport>) {
     return () => source.close()
   }
 
-  watch(transport, mode => {
+  watch([transport, pollIntervalMs], ([mode, intervalMs]) => {
     stop()
     stats.requests = 0
     stats.messages = 0
     stats.lastKind = ''
     stats.ticks = []
-    stop = mode === 'poll' ? startPolling() : startStreaming()
+    stats.delays = []
+    stop = mode === 'poll' ? startPolling(intervalMs) : startStreaming()
   }, { immediate: true })
 
   onScopeDispose(() => stop())
 
-  return { auction, receivedAt, error, stats, apply }
+  return { auction, receivedAt, error, stats, seenAfter, apply: (next: Auction) => apply(next, false) }
 }

@@ -498,15 +498,19 @@ layout: section
   <div class="bar">you → the room · polling mode</div>
   <div class="msg">Pick a name. Outbid your neighbour. Snipe the rubber duck.</div>
   <div class="watch">
-    <strong>Watch for:</strong> other people’s bids show up <span class="text-primary font-bold">up to 2 seconds late</span>,
-    and the “on the wire” strip fills with <span class="text-primary font-bold">grey dots</span>: requests that found nothing new.
+    <strong>Watch for:</strong> other people’s bids show up <span class="text-primary font-bold">about a second late</span> (“bids seen after”),
+    the “on the wire” strip fills with <span class="text-primary font-bold">grey dots</span>, and on my screen the room’s
+    <span class="text-primary font-bold">calls per second</span>, mostly finding nothing new.
   </div>
 </div>
 
 <!--
-Let this run for a minute or two. Keep the presenter screen on the auction.
-The flicker and delay should feel slightly annoying: that's the point. Late
-bids extend the clock, so it gets frantic at the end of each lot.
+Let this run for a minute or two. Keep the presenter screen on the auction:
+the "whole room" panel shows every laptop's polls hitting my server, and how
+many found nothing new. The delay should feel slightly annoying: that's the
+point. Late bids extend the clock, so it gets frantic at the end of each lot.
+Then the polling dilemma: switch the projector to 0.5s. Bids arrive sooner,
+and the room's calls per second jump. Faster polling buys freshness with load.
 -->
 
 <style>
@@ -621,15 +625,15 @@ bff/AuctionEndpoints.cs, and it's already in your BFF.
 <div class="cue">
   <div class="msg">Everyone: toggle <span class="text-primary">Streaming · SSE ← gRPC</span>, and keep bidding.</div>
   <div class="watch">
-    <strong>Watch for:</strong> the <span class="text-primary font-bold">live streams</span> counter climbing on my screen, bids landing on every screen
-    <span class="text-primary font-bold">at once</span>, and your HTTP request counter <span class="text-primary font-bold">standing still</span>.
+    <strong>Watch for:</strong> on my screen, <span class="text-primary font-bold">calls per second dropping to zero</span> while open streams climb.
+    On yours, “bids seen after” going to <span class="text-primary font-bold">0.00s</span>, and your HTTP request counter <span class="text-primary font-bold">standing still</span>.
   </div>
 </div>
 
 <!--
-The payoff. Switch the projector to the auction app. The watcher count on the
-lot card is the number of open WatchAuction streams on my server: watch it jump
-as the room flips. Then run a lot or two in streaming mode. Show the server
+The payoff. Switch the projector to the auction app, in streaming mode. The
+"whole room" panel is the server's view: polls per second fall away over ten
+seconds as the room flips, and open WatchAuction streams jump. Then run a lot or two in streaming mode. Show the server
 terminal briefly: "stream opened" lines from every IP in the room.
 -->
 

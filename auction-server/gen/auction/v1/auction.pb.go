@@ -83,6 +83,7 @@ const (
 	WatchAuctionResponse_KIND_LOT_OPENED       WatchAuctionResponse_Kind = 3
 	WatchAuctionResponse_KIND_LOT_CLOSED       WatchAuctionResponse_Kind = 4
 	WatchAuctionResponse_KIND_WATCHERS_CHANGED WatchAuctionResponse_Kind = 5
+	WatchAuctionResponse_KIND_LOAD_CHANGED     WatchAuctionResponse_Kind = 6 // the poll rate clearly changed; at most every few seconds
 )
 
 // Enum value maps for WatchAuctionResponse_Kind.
@@ -94,6 +95,7 @@ var (
 		3: "KIND_LOT_OPENED",
 		4: "KIND_LOT_CLOSED",
 		5: "KIND_WATCHERS_CHANGED",
+		6: "KIND_LOAD_CHANGED",
 	}
 	WatchAuctionResponse_Kind_value = map[string]int32{
 		"KIND_UNSPECIFIED":      0,
@@ -102,6 +104,7 @@ var (
 		"KIND_LOT_OPENED":       3,
 		"KIND_LOT_CLOSED":       4,
 		"KIND_WATCHERS_CHANGED": 5,
+		"KIND_LOAD_CHANGED":     6,
 	}
 )
 
@@ -491,10 +494,13 @@ func (x *Lot) GetMinIncrement() int64 {
 }
 
 type Bid struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Bidder        string                 `protobuf:"bytes,1,opt,name=bidder,proto3" json:"bidder,omitempty"`
-	Amount        int64                  `protobuf:"varint,2,opt,name=amount,proto3" json:"amount,omitempty"`
-	PlacedAt      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=placed_at,json=placedAt,proto3" json:"placed_at,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Bidder   string                 `protobuf:"bytes,1,opt,name=bidder,proto3" json:"bidder,omitempty"`
+	Amount   int64                  `protobuf:"varint,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	PlacedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=placed_at,json=placedAt,proto3" json:"placed_at,omitempty"`
+	// How long ago the bid was placed when this message left the server. Relative, like
+	// remaining_ms, so a client can measure how late it saw the bid without trusting its clock.
+	AgeMs         int64 `protobuf:"varint,4,opt,name=age_ms,json=ageMs,proto3" json:"age_ms,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -550,6 +556,13 @@ func (x *Bid) GetPlacedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Bid) GetAgeMs() int64 {
+	if x != nil {
+		return x.AgeMs
+	}
+	return 0
+}
+
 type Auction struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	Lot        *Lot                   `protobuf:"bytes,1,opt,name=lot,proto3" json:"lot,omitempty"`
@@ -560,8 +573,9 @@ type Auction struct {
 	// Open: until the lot closes. Sold/unsold: until the next lot opens.
 	// Relative instead of an absolute timestamp, so clients never depend on
 	// their clock being in sync with the server.
-	RemainingMs   int64 `protobuf:"varint,6,opt,name=remaining_ms,json=remainingMs,proto3" json:"remaining_ms,omitempty"`
-	Watchers      int32 `protobuf:"varint,7,opt,name=watchers,proto3" json:"watchers,omitempty"` // number of open WatchAuction streams
+	RemainingMs   int64       `protobuf:"varint,6,opt,name=remaining_ms,json=remainingMs,proto3" json:"remaining_ms,omitempty"`
+	Watchers      int32       `protobuf:"varint,7,opt,name=watchers,proto3" json:"watchers,omitempty"` // number of open WatchAuction streams
+	Load          *ServerLoad `protobuf:"bytes,8,opt,name=load,proto3" json:"load,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -645,6 +659,74 @@ func (x *Auction) GetWatchers() int32 {
 	return 0
 }
 
+func (x *Auction) GetLoad() *ServerLoad {
+	if x != nil {
+		return x.Load
+	}
+	return nil
+}
+
+// What the whole room costs the server, averaged over the last few seconds.
+type ServerLoad struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	PollsPerSecond  float64                `protobuf:"fixed64,1,opt,name=polls_per_second,json=pollsPerSecond,proto3" json:"polls_per_second,omitempty"`    // unary GetAuction calls
+	EmptyPollRatio  float64                `protobuf:"fixed64,2,opt,name=empty_poll_ratio,json=emptyPollRatio,proto3" json:"empty_poll_ratio,omitempty"`    // share of those polls that found nothing new, 0 to 1
+	PushesPerSecond float64                `protobuf:"fixed64,3,opt,name=pushes_per_second,json=pushesPerSecond,proto3" json:"pushes_per_second,omitempty"` // messages sent on WatchAuction streams
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ServerLoad) Reset() {
+	*x = ServerLoad{}
+	mi := &file_auction_v1_auction_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerLoad) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerLoad) ProtoMessage() {}
+
+func (x *ServerLoad) ProtoReflect() protoreflect.Message {
+	mi := &file_auction_v1_auction_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerLoad.ProtoReflect.Descriptor instead.
+func (*ServerLoad) Descriptor() ([]byte, []int) {
+	return file_auction_v1_auction_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ServerLoad) GetPollsPerSecond() float64 {
+	if x != nil {
+		return x.PollsPerSecond
+	}
+	return 0
+}
+
+func (x *ServerLoad) GetEmptyPollRatio() float64 {
+	if x != nil {
+		return x.EmptyPollRatio
+	}
+	return 0
+}
+
+func (x *ServerLoad) GetPushesPerSecond() float64 {
+	if x != nil {
+		return x.PushesPerSecond
+	}
+	return 0
+}
+
 var File_auction_v1_auction_proto protoreflect.FileDescriptor
 
 const file_auction_v1_auction_proto_rawDesc = "" +
@@ -660,28 +742,30 @@ const file_auction_v1_auction_proto_rawDesc = "" +
 	"\x06amount\x18\x03 \x01(\x03R\x06amount\"A\n" +
 	"\x10PlaceBidResponse\x12-\n" +
 	"\aauction\x18\x01 \x01(\v2\x13.auction.v1.AuctionR\aauction\"\x15\n" +
-	"\x13WatchAuctionRequest\"\x8c\x02\n" +
+	"\x13WatchAuctionRequest\"\xa3\x02\n" +
 	"\x14WatchAuctionResponse\x129\n" +
 	"\x04kind\x18\x01 \x01(\x0e2%.auction.v1.WatchAuctionResponse.KindR\x04kind\x12-\n" +
-	"\aauction\x18\x02 \x01(\v2\x13.auction.v1.AuctionR\aauction\"\x89\x01\n" +
+	"\aauction\x18\x02 \x01(\v2\x13.auction.v1.AuctionR\aauction\"\xa0\x01\n" +
 	"\x04Kind\x12\x14\n" +
 	"\x10KIND_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rKIND_SNAPSHOT\x10\x01\x12\x13\n" +
 	"\x0fKIND_BID_PLACED\x10\x02\x12\x13\n" +
 	"\x0fKIND_LOT_OPENED\x10\x03\x12\x13\n" +
 	"\x0fKIND_LOT_CLOSED\x10\x04\x12\x19\n" +
-	"\x15KIND_WATCHERS_CHANGED\x10\x05\"\xaf\x01\n" +
+	"\x15KIND_WATCHERS_CHANGED\x10\x05\x12\x15\n" +
+	"\x11KIND_LOAD_CHANGED\x10\x06\"\xaf\x01\n" +
 	"\x03Lot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x14\n" +
 	"\x05emoji\x18\x04 \x01(\tR\x05emoji\x12%\n" +
 	"\x0estarting_price\x18\x05 \x01(\x03R\rstartingPrice\x12#\n" +
-	"\rmin_increment\x18\x06 \x01(\x03R\fminIncrement\"n\n" +
+	"\rmin_increment\x18\x06 \x01(\x03R\fminIncrement\"\x85\x01\n" +
 	"\x03Bid\x12\x16\n" +
 	"\x06bidder\x18\x01 \x01(\tR\x06bidder\x12\x16\n" +
 	"\x06amount\x18\x02 \x01(\x03R\x06amount\x127\n" +
-	"\tplaced_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bplacedAt\"\x9b\x02\n" +
+	"\tplaced_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bplacedAt\x12\x15\n" +
+	"\x06age_ms\x18\x04 \x01(\x03R\x05ageMs\"\xc7\x02\n" +
 	"\aAuction\x12!\n" +
 	"\x03lot\x18\x01 \x01(\v2\x0f.auction.v1.LotR\x03lot\x12-\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x15.auction.v1.LotStatusR\x06status\x120\n" +
@@ -691,7 +775,13 @@ const file_auction_v1_auction_proto_rawDesc = "" +
 	"recentBids\x12\x1b\n" +
 	"\tbid_count\x18\x05 \x01(\x05R\bbidCount\x12!\n" +
 	"\fremaining_ms\x18\x06 \x01(\x03R\vremainingMs\x12\x1a\n" +
-	"\bwatchers\x18\a \x01(\x05R\bwatchers*h\n" +
+	"\bwatchers\x18\a \x01(\x05R\bwatchers\x12*\n" +
+	"\x04load\x18\b \x01(\v2\x16.auction.v1.ServerLoadR\x04load\"\x8c\x01\n" +
+	"\n" +
+	"ServerLoad\x12(\n" +
+	"\x10polls_per_second\x18\x01 \x01(\x01R\x0epollsPerSecond\x12(\n" +
+	"\x10empty_poll_ratio\x18\x02 \x01(\x01R\x0eemptyPollRatio\x12*\n" +
+	"\x11pushes_per_second\x18\x03 \x01(\x01R\x0fpushesPerSecond*h\n" +
 	"\tLotStatus\x12\x1a\n" +
 	"\x16LOT_STATUS_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fLOT_STATUS_OPEN\x10\x01\x12\x13\n" +
@@ -716,7 +806,7 @@ func file_auction_v1_auction_proto_rawDescGZIP() []byte {
 }
 
 var file_auction_v1_auction_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_auction_v1_auction_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_auction_v1_auction_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_auction_v1_auction_proto_goTypes = []any{
 	(LotStatus)(0),                 // 0: auction.v1.LotStatus
 	(WatchAuctionResponse_Kind)(0), // 1: auction.v1.WatchAuctionResponse.Kind
@@ -729,29 +819,31 @@ var file_auction_v1_auction_proto_goTypes = []any{
 	(*Lot)(nil),                    // 8: auction.v1.Lot
 	(*Bid)(nil),                    // 9: auction.v1.Bid
 	(*Auction)(nil),                // 10: auction.v1.Auction
-	(*timestamppb.Timestamp)(nil),  // 11: google.protobuf.Timestamp
+	(*ServerLoad)(nil),             // 11: auction.v1.ServerLoad
+	(*timestamppb.Timestamp)(nil),  // 12: google.protobuf.Timestamp
 }
 var file_auction_v1_auction_proto_depIdxs = []int32{
 	10, // 0: auction.v1.GetAuctionResponse.auction:type_name -> auction.v1.Auction
 	10, // 1: auction.v1.PlaceBidResponse.auction:type_name -> auction.v1.Auction
 	1,  // 2: auction.v1.WatchAuctionResponse.kind:type_name -> auction.v1.WatchAuctionResponse.Kind
 	10, // 3: auction.v1.WatchAuctionResponse.auction:type_name -> auction.v1.Auction
-	11, // 4: auction.v1.Bid.placed_at:type_name -> google.protobuf.Timestamp
+	12, // 4: auction.v1.Bid.placed_at:type_name -> google.protobuf.Timestamp
 	8,  // 5: auction.v1.Auction.lot:type_name -> auction.v1.Lot
 	0,  // 6: auction.v1.Auction.status:type_name -> auction.v1.LotStatus
 	9,  // 7: auction.v1.Auction.highest_bid:type_name -> auction.v1.Bid
 	9,  // 8: auction.v1.Auction.recent_bids:type_name -> auction.v1.Bid
-	2,  // 9: auction.v1.AuctionService.GetAuction:input_type -> auction.v1.GetAuctionRequest
-	4,  // 10: auction.v1.AuctionService.PlaceBid:input_type -> auction.v1.PlaceBidRequest
-	6,  // 11: auction.v1.AuctionService.WatchAuction:input_type -> auction.v1.WatchAuctionRequest
-	3,  // 12: auction.v1.AuctionService.GetAuction:output_type -> auction.v1.GetAuctionResponse
-	5,  // 13: auction.v1.AuctionService.PlaceBid:output_type -> auction.v1.PlaceBidResponse
-	7,  // 14: auction.v1.AuctionService.WatchAuction:output_type -> auction.v1.WatchAuctionResponse
-	12, // [12:15] is the sub-list for method output_type
-	9,  // [9:12] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	11, // 9: auction.v1.Auction.load:type_name -> auction.v1.ServerLoad
+	2,  // 10: auction.v1.AuctionService.GetAuction:input_type -> auction.v1.GetAuctionRequest
+	4,  // 11: auction.v1.AuctionService.PlaceBid:input_type -> auction.v1.PlaceBidRequest
+	6,  // 12: auction.v1.AuctionService.WatchAuction:input_type -> auction.v1.WatchAuctionRequest
+	3,  // 13: auction.v1.AuctionService.GetAuction:output_type -> auction.v1.GetAuctionResponse
+	5,  // 14: auction.v1.AuctionService.PlaceBid:output_type -> auction.v1.PlaceBidResponse
+	7,  // 15: auction.v1.AuctionService.WatchAuction:output_type -> auction.v1.WatchAuctionResponse
+	13, // [13:16] is the sub-list for method output_type
+	10, // [10:13] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_auction_v1_auction_proto_init() }
@@ -765,7 +857,7 @@ func file_auction_v1_auction_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auction_v1_auction_proto_rawDesc), len(file_auction_v1_auction_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

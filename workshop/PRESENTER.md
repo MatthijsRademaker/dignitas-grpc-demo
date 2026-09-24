@@ -37,7 +37,7 @@ Everything you need to run the live auction on the day. The talk itself is in
 | "Before we start" slide | Everyone runs `cp .env.example .env` and starts `docker compose build` |
 | Workshop | Walk the room. Watch the server log: every participant's first `PlaceBid` shows up as `unary … code=OK` from their IP |
 | End of the workshop | Not everyone finishes. Leave the catch-up line on the "One possible solution" slide up: `cp workshop/solution/AuctionEndpoints.cs bff/` |
-| Live auction | Projector on the app in **polling** mode. Let the room bid for a lot, then everyone flips to **streaming**. Watch the "live streams on the server" counter climb |
+| Live auction | Projector on the app in **polling** mode. Let the room bid for a lot, and point at "the whole room" panel: calls per second, and how many found nothing new. Switch the projector to 0.5s to show the polling dilemma. Then everyone flips to **streaming**: calls per second fall to zero, open streams climb, "bids seen after" drops to 0.00s |
 | Q&A | Leave the auction running |
 
 Useful server flags (append to `command` in `compose.yaml`): `-lot-duration=60s`,
@@ -71,5 +71,6 @@ port over plain TCP (no TLS).
 | Server streaming, Go side | `WatchAuction` in `auction-server/internal/auction/service.go` |
 | Stream translation to SSE | `GET /auction/stream` in `bff/AuctionEndpoints.cs` |
 | Slow consumers / flow control | `broadcastExcept` in `auction-server/internal/auction/house.go` |
+| Room load, empty polls, bid delay | `Poll`, `announceLoad` and `snapshot` in `auction-server/internal/auction/house.go` |
 | Keepalives | `SocketsHttpHandler` in `bff/Program.cs`; `KeepaliveEnforcementPolicy` in `auction-server/main.go` |
 | Reflection (for grpcurl) | `reflection.Register` in `auction-server/main.go` |

@@ -8,6 +8,7 @@ import (
 	auctionv1 "github.com/dignitas/dignitas-grpc-demo/auction-server/gen/auction/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -22,8 +23,13 @@ func NewService(house *House) *Service {
 	return &Service{house: house}
 }
 
-func (s *Service) GetAuction(context.Context, *auctionv1.GetAuctionRequest) (*auctionv1.GetAuctionResponse, error) {
-	return &auctionv1.GetAuctionResponse{Auction: s.house.Snapshot()}, nil
+func (s *Service) GetAuction(ctx context.Context, _ *auctionv1.GetAuctionRequest) (*auctionv1.GetAuctionResponse, error) {
+	// One BFF connection is one poller: that is how the server tells new news from old.
+	client := "unknown"
+	if p, ok := peer.FromContext(ctx); ok {
+		client = p.Addr.String()
+	}
+	return &auctionv1.GetAuctionResponse{Auction: s.house.Poll(client)}, nil
 }
 
 func (s *Service) PlaceBid(_ context.Context, req *auctionv1.PlaceBidRequest) (*auctionv1.PlaceBidResponse, error) {

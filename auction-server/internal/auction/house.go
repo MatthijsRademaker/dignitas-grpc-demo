@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -25,6 +26,13 @@ const (
 	// Each watcher gets a small buffer. Every event carries the full state, so a
 	// watcher that falls behind can safely skip events: the next one heals it.
 	watcherBuffer = 32
+
+	// Load is averaged over loadWindow. Streams hear about a change in polling traffic at
+	// most every loadEvery, so the projector shows the room flipping without flooding anyone.
+	loadWindow = 10 * time.Second
+	loadEvery  = 2 * time.Second
+	// A poller that has not polled for this long is forgotten.
+	pollerTTL = time.Minute
 )
 
 type Config struct {
@@ -47,6 +55,20 @@ type House struct {
 	bidCount  int32
 	watchers  map[uint64]chan *auctionv1.WatchAuctionResponse
 	nextWatch uint64
+
+	// version counts changes to the auction, so a poll can tell whether it brought news.
+	version      uint64
+	pollers      map[string]poller
+	polls        meter
+	emptyPolls   meter
+	pushes       meter
+	lastLoad     *auctionv1.ServerLoad // as last announced to streams
+	lastLoadSent time.Time
+}
+
+type poller struct {
+	version uint64 // the version this poller saw last
+	at      time.Time
 }
 
 func NewHouse(cfg Config) *House {
@@ -56,7 +78,15 @@ func NewHouse(cfg Config) *House {
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
-	h := &House{cfg: cfg, watchers: map[uint64]chan *auctionv1.WatchAuctionResponse{}}
+	h := &House{
+		cfg:        cfg,
+		watchers:   map[uint64]chan *auctionv1.WatchAuctionResponse{},
+		pollers:    map[string]poller{},
+		polls:      meter{window: loadWindow},
+		emptyPolls: meter{window: loadWindow},
+		pushes:     meter{window: loadWindow},
+		lastLoad:   &auctionv1.ServerLoad{},
+	}
 	h.openLot(0)
 	return h
 }
@@ -75,12 +105,14 @@ func (h *House) Run(ctx context.Context) {
 	}
 }
 
-// Tick closes the open lot or opens the next one when its deadline has passed.
+// Tick closes the open lot or opens the next one when its deadline has passed, and
+// tells streams when polling traffic has changed.
 func (h *House) Tick() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	now := h.cfg.Now()
+	h.announceLoad(now)
 	if now.Before(h.deadline) {
 		return
 	}
@@ -100,6 +132,22 @@ func (h *House) Tick() {
 func (h *House) Snapshot() *auctionv1.Auction {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	return h.snapshot()
+}
+
+// Poll is Snapshot for a polling client, identified by its address. It records the
+// poll, and whether it found anything the same client had not seen yet.
+func (h *House) Poll(client string) *auctionv1.Auction {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	now := h.cfg.Now()
+	last, known := h.pollers[client]
+	h.polls.mark(now)
+	if known && last.version == h.version {
+		h.emptyPolls.mark(now)
+	}
+	h.pollers[client] = poller{version: h.version, at: now}
 	return h.snapshot()
 }
 
@@ -156,6 +204,7 @@ func (h *House) Watch() (<-chan *auctionv1.WatchAuctionResponse, func()) {
 	events := make(chan *auctionv1.WatchAuctionResponse, watcherBuffer)
 	h.watchers[id] = events
 	events <- &auctionv1.WatchAuctionResponse{Kind: auctionv1.WatchAuctionResponse_KIND_SNAPSHOT, Auction: h.snapshot()}
+	h.pushes.mark(h.cfg.Now())
 	h.broadcastExcept(id, auctionv1.WatchAuctionResponse_KIND_WATCHERS_CHANGED)
 
 	return events, func() {
@@ -183,15 +232,68 @@ func (h *House) minimumBid() int64 {
 }
 
 func (h *House) snapshot() *auctionv1.Auction {
+	now := h.cfg.Now()
+	// Copies, not the stored bids: age_ms is different in every snapshot, and earlier
+	// snapshots may still be marshalled by other goroutines.
+	withAge := func(bid *auctionv1.Bid) *auctionv1.Bid {
+		return &auctionv1.Bid{Bidder: bid.Bidder, Amount: bid.Amount, PlacedAt: bid.PlacedAt,
+			AgeMs: max(0, now.Sub(bid.PlacedAt.AsTime()).Milliseconds())}
+	}
+	recent := make([]*auctionv1.Bid, len(h.recent))
+	for i, bid := range h.recent {
+		recent[i] = withAge(bid)
+	}
+	var highest *auctionv1.Bid
+	if h.highest != nil {
+		highest = withAge(h.highest)
+	}
 	return &auctionv1.Auction{
 		Lot:         h.cfg.Lots[h.lotIndex],
 		Status:      h.status,
-		HighestBid:  h.highest,
-		RecentBids:  h.recent,
+		HighestBid:  highest,
+		RecentBids:  recent,
 		BidCount:    h.bidCount,
-		RemainingMs: max(0, h.deadline.Sub(h.cfg.Now()).Milliseconds()),
+		RemainingMs: max(0, h.deadline.Sub(now).Milliseconds()),
 		Watchers:    int32(len(h.watchers)),
+		Load:        h.load(now),
 	}
+}
+
+func (h *House) load(now time.Time) *auctionv1.ServerLoad {
+	load := &auctionv1.ServerLoad{
+		PollsPerSecond:  h.polls.perSecond(now),
+		PushesPerSecond: h.pushes.perSecond(now),
+	}
+	if polls := h.polls.count(now); polls > 0 {
+		load.EmptyPollRatio = float64(h.emptyPolls.count(now)) / float64(polls)
+	}
+	return load
+}
+
+// announceLoad pushes a LOAD_CHANGED event when the poll rate has clearly changed since
+// streams last heard about it: someone started or stopped polling. The other figures ride
+// along, but never trigger one on their own: they jitter with every poll, and pushing
+// about pushes would feed itself.
+func (h *House) announceLoad(now time.Time) {
+	for client, p := range h.pollers {
+		if now.Sub(p.at) > pollerTTL {
+			delete(h.pollers, client)
+		}
+	}
+	if len(h.watchers) == 0 || now.Sub(h.lastLoadSent) < loadEvery {
+		return
+	}
+	if from, to := h.lastLoad.PollsPerSecond, h.polls.perSecond(now); !clearlyDifferent(from, to) {
+		return
+	}
+	h.broadcast(auctionv1.WatchAuctionResponse_KIND_LOAD_CHANGED)
+}
+
+func clearlyDifferent(from, to float64) bool {
+	if from == 0 || to == 0 {
+		return from != to
+	}
+	return math.Abs(to-from)/from > 0.25
 }
 
 func (h *House) broadcast(kind auctionv1.WatchAuctionResponse_Kind) {
@@ -199,13 +301,21 @@ func (h *House) broadcast(kind auctionv1.WatchAuctionResponse_Kind) {
 }
 
 func (h *House) broadcastExcept(skip uint64, kind auctionv1.WatchAuctionResponse_Kind) {
+	now := h.cfg.Now()
+	// Load changes are not news about the auction itself: a poll that only finds a new
+	// load figure still counts as empty.
+	if kind != auctionv1.WatchAuctionResponse_KIND_LOAD_CHANGED {
+		h.version++
+	}
 	event := &auctionv1.WatchAuctionResponse{Kind: kind, Auction: h.snapshot()}
+	h.lastLoad, h.lastLoadSent = event.Auction.Load, now
 	for id, events := range h.watchers {
 		if id == skip {
 			continue
 		}
 		select {
 		case events <- event:
+			h.pushes.mark(now)
 		default: // watcher is behind; it catches up on the next event
 		}
 	}

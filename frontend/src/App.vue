@@ -5,16 +5,18 @@
   import BidFeed from './components/BidFeed.vue'
   import BidPanel from './components/BidPanel.vue'
   import LotCard from './components/LotCard.vue'
+  import RoomLoad from './components/RoomLoad.vue'
   import TransportPanel from './components/TransportPanel.vue'
-  import { useAuctionFeed, type Transport } from './useAuctionFeed'
+  import { DEFAULT_POLL_INTERVAL_MS, POLL_INTERVALS_MS, useAuctionFeed, type Transport } from './useAuctionFeed'
   import { useNow } from './useNow'
 
   const initial = new URLSearchParams(location.search).get('transport')
   const transport = shallowRef<Transport>(initial === 'stream' ? 'stream' : 'poll')
+  const pollIntervalMs = shallowRef<number>(DEFAULT_POLL_INTERVAL_MS)
   const bidder = shallowRef(localStorage.getItem('auction:bidder') ?? '')
   const auctionHost = shallowRef('')
 
-  const { auction, receivedAt, error, stats, apply } = useAuctionFeed(transport)
+  const { auction, receivedAt, error, stats, seenAfter, apply } = useAuctionFeed(transport, pollIntervalMs)
   const now = useNow()
   const remainingMs = computed(() =>
     auction.value ? Math.max(0, auction.value.remainingMs - (now.value - receivedAt.value)) : 0,
@@ -36,25 +38,44 @@
         </p>
       </div>
 
-      <Toggle.Group
-        v-model="transport"
-        class="flex rounded-xl border border-border bg-surface p-1 shadow-sm"
-        label="How this page gets updates"
-        mandatory
-      >
-        <Toggle.Root
-          class="cursor-pointer rounded-lg px-4 py-2 text-sm font-bold text-muted transition data-[state=on]:bg-primary data-[state=on]:text-on-primary"
-          value="poll"
+      <div class="flex flex-wrap items-center gap-3">
+        <Toggle.Group
+          v-if="transport === 'poll'"
+          v-model="pollIntervalMs"
+          class="flex rounded-xl border border-border bg-surface p-1 shadow-sm"
+          label="How often to poll"
+          mandatory
         >
-          Polling · every 2s
-        </Toggle.Root>
-        <Toggle.Root
-          class="cursor-pointer rounded-lg px-4 py-2 text-sm font-bold text-muted transition data-[state=on]:bg-primary data-[state=on]:text-on-primary"
-          value="stream"
+          <Toggle.Root
+            v-for="ms in POLL_INTERVALS_MS"
+            :key="ms"
+            class="cursor-pointer rounded-lg px-3 py-2 text-sm font-bold text-muted tabular-nums transition data-[state=on]:bg-on-surface data-[state=on]:text-surface"
+            :value="ms"
+          >
+            {{ ms / 1000 }}s
+          </Toggle.Root>
+        </Toggle.Group>
+
+        <Toggle.Group
+          v-model="transport"
+          class="flex rounded-xl border border-border bg-surface p-1 shadow-sm"
+          label="How this page gets updates"
+          mandatory
         >
-          Streaming · SSE ← gRPC
-        </Toggle.Root>
-      </Toggle.Group>
+          <Toggle.Root
+            class="cursor-pointer rounded-lg px-4 py-2 text-sm font-bold text-muted transition data-[state=on]:bg-primary data-[state=on]:text-on-primary"
+            value="poll"
+          >
+            Polling · every {{ pollIntervalMs / 1000 }}s
+          </Toggle.Root>
+          <Toggle.Root
+            class="cursor-pointer rounded-lg px-4 py-2 text-sm font-bold text-muted transition data-[state=on]:bg-primary data-[state=on]:text-on-primary"
+            value="stream"
+          >
+            Streaming · SSE ← gRPC
+          </Toggle.Root>
+        </Toggle.Group>
+      </div>
     </header>
 
     <div v-if="!auction" class="rounded-2xl border border-border bg-surface p-10 text-center text-muted">
@@ -64,11 +85,12 @@
     <main v-else class="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
       <div class="flex flex-col gap-6">
         <LotCard :auction :remaining-ms />
-        <BidFeed :bids="auction.recentBids.slice(0, 8)" :me="bidder" />
+        <RoomLoad :load="auction.load" :watchers="auction.watchers" />
+        <BidFeed :bids="auction.recentBids.slice(0, 8)" :me="bidder" :seen-after />
       </div>
       <div class="flex flex-col gap-6">
         <BidPanel v-model:bidder="bidder" :auction @placed="apply" />
-        <TransportPanel :error :now :stats :transport />
+        <TransportPanel :error :now :poll-interval-ms :stats :transport />
       </div>
     </main>
   </div>

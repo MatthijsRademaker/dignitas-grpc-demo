@@ -12,9 +12,16 @@ public record LotDto(string Id, string Title, string Description, string Emoji, 
         new(lot.Id, lot.Title, lot.Description, lot.Emoji, lot.StartingPrice, lot.MinIncrement);
 }
 
-public record BidDto(string Bidder, long Amount, DateTimeOffset PlacedAt)
+public record BidDto(string Bidder, long Amount, DateTimeOffset PlacedAt, long AgeMs)
 {
-    public static BidDto From(Bid bid) => new(bid.Bidder, bid.Amount, bid.PlacedAt.ToDateTimeOffset());
+    public static BidDto From(Bid bid) => new(bid.Bidder, bid.Amount, bid.PlacedAt.ToDateTimeOffset(), bid.AgeMs);
+}
+
+public record ServerLoadDto(double PollsPerSecond, double EmptyPollRatio, double PushesPerSecond)
+{
+    // An older server that doesn't send load yet: report nothing rather than fail.
+    public static ServerLoadDto From(ServerLoad? load) =>
+        load is null ? new(0, 0, 0) : new(load.PollsPerSecond, load.EmptyPollRatio, load.PushesPerSecond);
 }
 
 public record AuctionDto(
@@ -24,7 +31,8 @@ public record AuctionDto(
     IReadOnlyList<BidDto> RecentBids,
     int BidCount,
     long RemainingMs,
-    int Watchers)
+    int Watchers,
+    ServerLoadDto Load)
 {
     public static AuctionDto From(Auction auction) => new(
         LotDto.From(auction.Lot),
@@ -40,7 +48,8 @@ public record AuctionDto(
         auction.RecentBids.Select(BidDto.From).ToList(),
         auction.BidCount,
         auction.RemainingMs,
-        auction.Watchers);
+        auction.Watchers,
+        ServerLoadDto.From(auction.Load));
 }
 
 public record AuctionEventDto(string Kind, AuctionDto Auction)
@@ -53,6 +62,7 @@ public record AuctionEventDto(string Kind, AuctionDto Auction)
             WatchAuctionResponse.Types.Kind.LotOpened => "lot_opened",
             WatchAuctionResponse.Types.Kind.LotClosed => "lot_closed",
             WatchAuctionResponse.Types.Kind.WatchersChanged => "watchers_changed",
+            WatchAuctionResponse.Types.Kind.LoadChanged => "load_changed",
             _ => throw new ArgumentOutOfRangeException(nameof(message), message.Kind, "Unknown event kind"),
         },
         AuctionDto.From(message.Auction));

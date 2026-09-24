@@ -13,6 +13,15 @@ export interface Bid {
   bidder: string
   amount: number
   placedAt: string
+  /** How old the bid was when the server sent this: how late we are seeing it. */
+  ageMs: number
+}
+
+/** What the whole room costs the auction server, over the last few seconds. */
+export interface ServerLoad {
+  pollsPerSecond: number
+  emptyPollRatio: number
+  pushesPerSecond: number
 }
 
 export type LotStatus = 'open' | 'sold' | 'unsold'
@@ -25,9 +34,10 @@ export interface Auction {
   bidCount: number
   remainingMs: number
   watchers: number
+  load: ServerLoad
 }
 
-export type AuctionEventKind = 'snapshot' | 'bid_placed' | 'lot_opened' | 'lot_closed' | 'watchers_changed'
+export type AuctionEventKind = 'snapshot' | 'bid_placed' | 'lot_opened' | 'lot_closed' | 'watchers_changed' | 'load_changed'
 
 export interface AuctionEvent {
   kind: AuctionEventKind
@@ -41,6 +51,10 @@ export interface Problem {
 }
 
 export type Result<T> = { ok: true, value: T } | { ok: false, problem: Problem }
+
+export function bidKey (bid: Bid): string {
+  return bid.placedAt + bid.bidder
+}
 
 export function minimumBid (auction: Auction): number {
   return auction.highestBid ? auction.highestBid.amount + auction.lot.minIncrement : auction.lot.startingPrice
