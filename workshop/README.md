@@ -90,7 +90,7 @@ Open [`bff/AuctionEndpoints.cs`](../bff/AuctionEndpoints.cs) and find the `WORKS
 
 | Symptom | Likely cause |
 | --- | --- |
-| `docker compose` says `Set AUCTION_HOST…` | `.env` is missing or has no `AUCTION_HOST` |
+| BFF exits with `AUCTION_HOST is not set…` | `.env` is missing or has no `AUCTION_HOST` |
 | Page says "Connecting…" or shows `Unavailable` | Wrong IP or port in `AUCTION_HOST`, or the Wi-Fi blocks laptop-to-laptop traffic. Test with the `grpcurl … list` command above |
 | `DeadlineExceeded` on every call | Same as above: the server can't be reached in time |
 | Port 8080 already in use | Change `"8080:80"` in `compose.yaml` to e.g. `"8081:80"` |

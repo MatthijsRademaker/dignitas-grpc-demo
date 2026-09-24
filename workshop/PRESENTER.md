@@ -8,10 +8,11 @@ Everything you need to run the live auction on the day. The talk itself is in
 1. **Rehearse alone** with simulated bidders:
 
    ```bash
-   AUCTION_HOST=http://auction-server:50051 AUCTION_BOTS=3 docker compose --profile presenter up --build
+   AUCTION_BOTS=3 docker compose --profile presenter up --build
    ```
 
-   Open <http://localhost:8080>. Your BFF still has the workshop TODO. Apply the solution so you can
+   Leave `AUCTION_HOST` unset (or empty in `.env`): your BFF then finds the local auction-server
+   through Docker DNS. Open <http://localhost:8080>. Your BFF still has the workshop TODO. Apply the solution so you can
    bid too: `cp workshop/solution/AuctionEndpoints.cs bff/` (or live-code it during the workshop and
    `git checkout bff/AuctionEndpoints.cs` afterwards).
 
@@ -24,7 +25,7 @@ Everything you need to run the live auction on the day. The talk itself is in
    You should see `auction.v1.AuctionService`. If not, see [Networking](#networking).
 
 3. **Pre-pull images** on the venue Wi-Fi if you can, or at least on your own machine:
-   `AUCTION_HOST=http://auction-server:50051 docker compose --profile presenter build`.
+   `docker compose --profile presenter build`.
 
 4. Put your IP on the "Get connected" slide.
 
@@ -32,7 +33,7 @@ Everything you need to run the live auction on the day. The talk itself is in
 
 | When | What you run / do |
 | --- | --- |
-| Before people arrive | `AUCTION_HOST=http://auction-server:50051 docker compose --profile presenter up --build` (no bots). Check the IP again: venue DHCP may have changed it |
+| Before people arrive | `docker compose --profile presenter up --build` (no bots). Check the IP again: venue DHCP may have changed it |
 | "Before we start" slide | Everyone runs `cp .env.example .env` and starts `docker compose build` |
 | Workshop | Walk the room. Watch the server log: every participant's first `PlaceBid` shows up as `unary … code=OK` from their IP |
 | End of the workshop | Not everyone finishes. Leave the catch-up line on the "One possible solution" slide up: `cp workshop/solution/AuctionEndpoints.cs bff/` |
@@ -56,7 +57,7 @@ port over plain TCP (no TLS).
 - **Guest Wi-Fi with client isolation** blocks laptop-to-laptop traffic entirely. Fallbacks:
   - Run the server on a small cloud VM (`docker compose --profile presenter up auction-server`) and
     hand out its IP instead. Same compose file, same flow.
-  - Worst case, everyone runs solo: `AUCTION_HOST=http://auction-server:50051 docker compose --profile presenter up`.
+  - Worst case, everyone runs solo: `docker compose --profile presenter up`, with `AUCTION_HOST` unset.
     The workshop still works; the shared auction doesn't.
 
 ## What to point at during the talk

@@ -67,9 +67,8 @@ docker compose build    # a few minutes: start it now
 
 <!--
 Get the slow part out of the way now so the workshop is 15 minutes of code,
-not 15 minutes of downloading base images. The .env copy matters: compose
-refuses to build without AUCTION_HOST. The real IP comes on the "Get connected"
-slide. Walk around briefly if people get stuck; don't block on it.
+not 15 minutes of downloading base images. Copying .env now saves a step
+later; the real IP comes on the "Get connected" slide. Walk around briefly if people get stuck; don't block on it.
 -->
 
 <style>

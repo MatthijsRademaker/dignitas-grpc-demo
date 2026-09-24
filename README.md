@@ -27,8 +27,9 @@ browser ──HTTP/JSON, SSE──▶ BFF (.NET 10) ──gRPC──▶ auction-
 cp .env.example .env          # set AUCTION_HOST=http://<presenter-ip>:50051
 docker compose up --build --watch
 
-# Presenter, or anyone solo: also run the auction server (add AUCTION_BOTS=3 to rehearse alone)
-AUCTION_HOST=http://auction-server:50051 docker compose --profile presenter up --build
+# Presenter, or anyone solo: also run the auction server (add AUCTION_BOTS=3 to rehearse alone).
+# Leave AUCTION_HOST unset or empty: the BFF finds the local auction-server through Docker DNS.
+docker compose --profile presenter up --build
 ```
 
 Open <http://localhost:8080>. Then follow [`workshop/README.md`](workshop/README.md).
