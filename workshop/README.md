@@ -16,7 +16,7 @@ browser ──HTTP/JSON──▶ your BFF (.NET) ──gRPC──▶ presenter's
 You only need Docker (Compose 2.22 or newer, for `--watch`).
 
 ```bash
-git clone <repo-url> && cd dignitas-grpc-demo
+git clone https://github.com/MatthijsRademaker/dignitas-grpc-demo.git && cd dignitas-grpc-demo
 cp .env.example .env
 # edit .env: AUCTION_HOST=http://<presenter-ip>:50051   (the IP is on the slide)
 docker compose up --build --watch
@@ -108,6 +108,15 @@ cd frontend && npm ci && npm run dev                            # http://localho
 ## Solution
 
 Try it yourself first. The full file is in [`solution/AuctionEndpoints.cs`](solution/AuctionEndpoints.cs).
+
+**Out of time?** Copy it in so you can join the live auction:
+
+```bash
+cp workshop/solution/AuctionEndpoints.cs bff/
+```
+
+With `--watch` the BFF rebuilds by itself; give it a few seconds, then bid. Running natively?
+Stop `dotnet run` and start it again.
 
 <details>
 <summary>Show the solution</summary>

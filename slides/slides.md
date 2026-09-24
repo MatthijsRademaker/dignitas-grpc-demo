@@ -56,7 +56,8 @@ part I protect if we run late. If time slips, "under the hood" gets compressed.
 <div class="setup">
 
 ```bash
-git clone <repo-url> && cd dignitas-grpc-demo
+git clone https://github.com/MatthijsRademaker/dignitas-grpc-demo.git
+cd dignitas-grpc-demo && cp .env.example .env
 docker compose build    # a few minutes: start it now
 ```
 
@@ -66,8 +67,9 @@ docker compose build    # a few minutes: start it now
 
 <!--
 Get the slow part out of the way now so the workshop is 15 minutes of code,
-not 15 minutes of downloading base images. Fill in the real repo URL before
-the session. Walk around briefly if people get stuck; don't block on it.
+not 15 minutes of downloading base images. The .env copy matters: compose
+refuses to build without AUCTION_HOST. The real IP comes on the "Get connected"
+slide. Walk around briefly if people get stuck; don't block on it.
 -->
 
 <style>
@@ -473,10 +475,14 @@ api.MapPost("/bids", async (PlaceBidBody body, AuctionService.AuctionServiceClie
 
 <p v-click class="mt-5 text-xl text-center">A typed call across the network. <span class="text-primary font-bold">The contract did the rest.</span></p>
 
+<p v-click class="mt-4 text-lg text-center">Not done? <code>cp workshop/solution/AuctionEndpoints.cs bff/</code>, wait a few seconds, then bid.</p>
+
 <!--
 Walk the highlights: the call itself, the deadline (gRPC has no default
 timeout; always set one), the mapping to JSON for the browser, the status-code
 translation. Ask who got it working: hands up. Their bids are in MY auction now.
+[click] Leave the catch-up line on screen for a moment before "Everyone: bid!":
+--watch picks up the copied file, so nobody sits out the live auction.
 -->
 
 ---
@@ -796,62 +802,6 @@ reflection enabled: grpcurl -plaintext <ip>:50051 list works right now.
 </style>
 
 ---
-
-# “Why bother, if my frontend can’t use it?”
-
-<p class="text-lg mt-2">Sometimes you shouldn’t. Simple CRUD from browser to one backend? REST is fine. It pays off <strong>behind</strong> the BFF: fan-out, polyglot services, real-time pipelines.</p>
-
-<div class="path mt-6">
-  <div v-click class="step"><span class="n">1</span><b>Start simple</b><p>Unary gRPC behind the BFF. The browser keeps its JSON.</p></div>
-  <div v-click class="step"><span class="n">2</span><b>Need real-time?</b><p>The backend streams, the BFF translates to SSE or WebSockets. Tonight’s demo.</p></div>
-  <div v-click class="step"><span class="n">3</span><b>Advanced</b><p>The BFF keeps a live snapshot from streams; the frontend polls the BFF cheaply. Costs: a stateful BFF.</p></div>
-</div>
-
-<!--
-The challenge you'll get: "the frontend still polls, so why invest?" Answer:
-because it cleans up service-to-service contracts, and each boundary gets the
-right protocol. Present option 3 as an option, not a default: statefulness
-in the BFF is a real cost.
--->
-
-<style>
-.path { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-.step { position: relative; padding: 1rem 1.1rem 1rem; border-radius: 0.75rem; border: 1px solid color-mix(in srgb, var(--se-color-primary) 30%, transparent);
-  background: color-mix(in srgb, var(--se-color-primary) 5%, transparent); }
-.step .n { display: inline-flex; width: 1.8rem; height: 1.8rem; border-radius: 50%; align-items: center; justify-content: center;
-  font-weight: 800; color: #fff; background: var(--se-color-primary); margin-right: 0.5rem; }
-.step b { font-size: 1.1rem; }
-.step p { font-size: 0.92rem; margin-top: 0.5rem; }
-</style>
-
----
-
-# Sharp edges, for next time
-
-<div class="edges mt-4">
-  <div class="edge"><b>Deadlines</b> gRPC has no default timeout. Every BFF call sets one: <code>deadline: 2s</code>.</div>
-  <div class="edge"><b>Cancellation</b> Pass the token on, so hung-up clients stop costing you. <code>ct</code> → stream.</div>
-  <div class="edge"><b>Slow consumers</b> A watcher that falls behind skips events. Safe here, because every event carries full state.</div>
-  <div class="edge"><b>Keepalives</b> Long-lived streams die silently on Wi-Fi and NAT. The BFF pings every 20s.</div>
-  <div class="edge"><b>Load balancing</b> One long-lived HTTP/2 connection defeats per-connection balancing. Balance per call (L7).</div>
-  <div class="edge"><b>Status codes</b> gRPC codes aren’t HTTP codes. The boundary maps them: <code>GrpcErrors.cs</code>.</div>
-</div>
-
-<p class="mt-5 text-center text-lg opacity-75">Every one of these is handled somewhere in the demo repo. Go read it.</p>
-
-<!--
-Name them, point at where the repo handles each, promise a follow-up. Don't
-drag this into a deep dive: the hour is nearly up.
--->
-
-<style>
-.edges { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1rem; }
-.edge { font-size: 0.95rem; padding: 0.55rem 0.8rem; border-left: 3px solid var(--se-color-primary);
-  background: color-mix(in srgb, var(--se-color-primary) 6%, transparent); border-radius: 0 0.5rem 0.5rem 0; }
-.edge b { display: block; color: var(--se-color-primary); font-weight: 800; }
-</style>
-
----
 clicks: 5
 ---
 
@@ -891,3 +841,69 @@ layout: section
 Closing line. Thank you. Questions? Leave the auction running on the second
 screen during Q&A: people will keep bidding.
 -->
+
+---
+layout: section
+---
+
+# Backup
+
+<!--
+Only if asked during Q&A.
+-->
+
+---
+
+# “Why bother, if my frontend can’t use it?”
+
+<p class="text-lg mt-2">Sometimes you shouldn’t. Simple CRUD from browser to one backend? REST is fine. It pays off <strong>behind</strong> the BFF: fan-out, polyglot services, real-time pipelines.</p>
+
+<div class="path mt-6">
+  <div v-click class="step"><span class="n">1</span><b>Start simple</b><p>Unary gRPC behind the BFF. The browser keeps its JSON.</p></div>
+  <div v-click class="step"><span class="n">2</span><b>Need real-time?</b><p>The backend streams, the BFF translates to SSE or WebSockets. Tonight’s demo.</p></div>
+  <div v-click class="step"><span class="n">3</span><b>Advanced</b><p>The BFF keeps a live snapshot from streams; the frontend polls the BFF cheaply. Costs: a stateful BFF.</p></div>
+</div>
+
+<!--
+Backup: jump here (press g) when someone asks. The challenge you'll get: "the frontend still polls, so why invest?" Answer:
+because it cleans up service-to-service contracts, and each boundary gets the
+right protocol. Present option 3 as an option, not a default: statefulness
+in the BFF is a real cost.
+-->
+
+<style>
+.path { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.step { position: relative; padding: 1rem 1.1rem 1rem; border-radius: 0.75rem; border: 1px solid color-mix(in srgb, var(--se-color-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--se-color-primary) 5%, transparent); }
+.step .n { display: inline-flex; width: 1.8rem; height: 1.8rem; border-radius: 50%; align-items: center; justify-content: center;
+  font-weight: 800; color: #fff; background: var(--se-color-primary); margin-right: 0.5rem; }
+.step b { font-size: 1.1rem; }
+.step p { font-size: 0.92rem; margin-top: 0.5rem; }
+</style>
+
+---
+
+# Sharp edges, for next time
+
+<div class="edges mt-4">
+  <div class="edge"><b>Deadlines</b> gRPC has no default timeout. Every BFF call sets one: <code>deadline: 2s</code>.</div>
+  <div class="edge"><b>Cancellation</b> Pass the token on, so hung-up clients stop costing you. <code>ct</code> → stream.</div>
+  <div class="edge"><b>Slow consumers</b> A watcher that falls behind skips events. Safe here, because every event carries full state.</div>
+  <div class="edge"><b>Keepalives</b> Long-lived streams die silently on Wi-Fi and NAT. The BFF pings every 20s.</div>
+  <div class="edge"><b>Load balancing</b> One long-lived HTTP/2 connection defeats per-connection balancing. Balance per call (L7).</div>
+  <div class="edge"><b>Status codes</b> gRPC codes aren’t HTTP codes. The boundary maps them: <code>GrpcErrors.cs</code>.</div>
+</div>
+
+<p class="mt-5 text-center text-lg opacity-75">Every one of these is handled somewhere in the demo repo. Go read it.</p>
+
+<!--
+Backup: jump here (press g) if someone asks about production concerns. Name
+them, point at where the repo handles each, promise a follow-up. No deep dive.
+-->
+
+<style>
+.edges { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1rem; }
+.edge { font-size: 0.95rem; padding: 0.55rem 0.8rem; border-left: 3px solid var(--se-color-primary);
+  background: color-mix(in srgb, var(--se-color-primary) 6%, transparent); border-radius: 0 0.5rem 0.5rem 0; }
+.edge b { display: block; color: var(--se-color-primary); font-weight: 800; }
+</style>

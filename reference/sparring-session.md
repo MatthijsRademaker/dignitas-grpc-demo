@@ -59,6 +59,6 @@ decisions it produced; the slides and app implement these.
 | 10 | Live auction payoff |
 | 7 | Streaming shapes, using the auction, plus the translation slide |
 | 4 | Trade-offs, one slide |
-| 4 | Q&A |
+| 5 | Q&A |
 
 Protect the workshop and the live auction: that is what people remember.

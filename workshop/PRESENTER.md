@@ -24,17 +24,18 @@ Everything you need to run the live auction on the day. The talk itself is in
    You should see `auction.v1.AuctionService`. If not, see [Networking](#networking).
 
 3. **Pre-pull images** on the venue Wi-Fi if you can, or at least on your own machine:
-   `docker compose --profile presenter build`.
+   `AUCTION_HOST=http://auction-server:50051 docker compose --profile presenter build`.
 
-4. Put the real repository URL on the "Before we start" slide and your IP on the "Get connected" slide.
+4. Put your IP on the "Get connected" slide.
 
 ## On the day
 
 | When | What you run / do |
 | --- | --- |
 | Before people arrive | `AUCTION_HOST=http://auction-server:50051 docker compose --profile presenter up --build` (no bots). Check the IP again: venue DHCP may have changed it |
-| "Before we start" slide | Everyone starts `docker compose build` |
+| "Before we start" slide | Everyone runs `cp .env.example .env` and starts `docker compose build` |
 | Workshop | Walk the room. Watch the server log: every participant's first `PlaceBid` shows up as `unary … code=OK` from their IP |
+| End of the workshop | Not everyone finishes. Leave the catch-up line on the "One possible solution" slide up: `cp workshop/solution/AuctionEndpoints.cs bff/` |
 | Live auction | Projector on the app in **polling** mode. Let the room bid for a lot, then everyone flips to **streaming**. Watch the "live streams on the server" counter climb |
 | Q&A | Leave the auction running |
 
