@@ -1,5 +1,5 @@
-// Package auction runs the live auction: one open lot at a time, bids, and a
-// fan-out of every change to all watchers.
+// Package auction runs the live auction: one open lot at a time, auctioned in rounds,
+// bids, and a fan-out of every change to all watchers.
 package auction
 
 import (
@@ -23,6 +23,7 @@ var (
 
 const (
 	recentBidsCap = 12
+	winnersCap    = 10
 	// Each watcher gets a small buffer. Every event carries the full state, so a
 	// watcher that falls behind can safely skip events: the next one heals it.
 	watcherBuffer = 32
@@ -48,11 +49,13 @@ type House struct {
 
 	mu        sync.Mutex
 	lotIndex  int
+	round     int32 // 1 for the first lot opened, +1 every time a lot opens
 	status    auctionv1.LotStatus
 	deadline  time.Time // open: closing time; sold/unsold: next lot opens
 	highest   *auctionv1.Bid
 	recent    []*auctionv1.Bid
 	bidCount  int32
+	winners   []*auctionv1.Sale // newest first, capped at winnersCap
 	watchers  map[uint64]chan *auctionv1.WatchAuctionResponse
 	nextWatch uint64
 
@@ -120,6 +123,7 @@ func (h *House) Tick() {
 		h.status = auctionv1.LotStatus_LOT_STATUS_UNSOLD
 		if h.highest != nil {
 			h.status = auctionv1.LotStatus_LOT_STATUS_SOLD
+			h.recordSale(now)
 		}
 		h.deadline = now.Add(h.cfg.Intermission)
 		h.broadcast(auctionv1.WatchAuctionResponse_KIND_LOT_CLOSED)
@@ -217,11 +221,21 @@ func (h *House) Watch() (<-chan *auctionv1.WatchAuctionResponse, func()) {
 
 func (h *House) openLot(index int) {
 	h.lotIndex = index
+	h.round++
 	h.status = auctionv1.LotStatus_LOT_STATUS_OPEN
 	h.deadline = h.cfg.Now().Add(h.cfg.LotDuration)
 	h.highest = nil
 	h.recent = nil
 	h.bidCount = 0
+}
+
+func (h *House) recordSale(now time.Time) {
+	sale := &auctionv1.Sale{Round: h.round, Bidder: h.highest.Bidder, Amount: h.highest.Amount, SoldAt: timestamppb.New(now)}
+	// Always a new slice, never written in place: earlier snapshots share the old one.
+	h.winners = append([]*auctionv1.Sale{sale}, h.winners...)
+	if len(h.winners) > winnersCap {
+		h.winners = h.winners[:winnersCap]
+	}
 }
 
 func (h *House) minimumBid() int64 {
@@ -248,14 +262,17 @@ func (h *House) snapshot() *auctionv1.Auction {
 		highest = withAge(h.highest)
 	}
 	return &auctionv1.Auction{
-		Lot:         h.cfg.Lots[h.lotIndex],
-		Status:      h.status,
-		HighestBid:  highest,
-		RecentBids:  recent,
-		BidCount:    h.bidCount,
-		RemainingMs: max(0, h.deadline.Sub(now).Milliseconds()),
-		Watchers:    int32(len(h.watchers)),
-		Load:        h.load(now),
+		Lot:           h.cfg.Lots[h.lotIndex],
+		Status:        h.status,
+		HighestBid:    highest,
+		RecentBids:    recent,
+		BidCount:      h.bidCount,
+		RemainingMs:   max(0, h.deadline.Sub(now).Milliseconds()),
+		Watchers:      int32(len(h.watchers)),
+		Load:          h.load(now),
+		Round:         h.round,
+		LotDurationMs: h.cfg.LotDuration.Milliseconds(),
+		Winners:       h.winners,
 	}
 }
 

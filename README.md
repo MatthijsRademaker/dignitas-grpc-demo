@@ -32,7 +32,8 @@ docker compose up --build --watch
 docker compose --profile presenter up --build
 ```
 
-Open <http://localhost:8080>. Then follow [`workshop/README.md`](workshop/README.md).
+Open <http://localhost:8080>. Then follow [`workshop/README.md`](workshop/README.md). The projector layout for the
+presenter is <http://localhost:8080/?view=stage>.
 
 ## Development
 

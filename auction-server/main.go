@@ -22,9 +22,9 @@ import (
 
 func main() {
 	addr := flag.String("addr", ":50051", "listen address (all interfaces, so the whole room can reach it)")
-	lotDuration := flag.Duration("lot-duration", 60*time.Second, "how long each lot is open")
-	snipeWindow := flag.Duration("snipe-window", 10*time.Second, "a bid this close to closing extends the lot by this much")
-	intermission := flag.Duration("intermission", 8*time.Second, "pause between lots")
+	lotDuration := flag.Duration("lot-duration", 60*time.Second, "how long each round is open")
+	snipeWindow := flag.Duration("snipe-window", 10*time.Second, "a bid this close to closing extends the round by this much")
+	intermission := flag.Duration("intermission", 8*time.Second, "pause between rounds")
 	bots := flag.Int("bots", 0, "number of simulated bidders, for rehearsing alone")
 	flag.Parse()
 

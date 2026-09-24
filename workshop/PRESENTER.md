@@ -12,7 +12,9 @@ Everything you need to run the live auction on the day. The talk itself is in
    ```
 
    Leave `AUCTION_HOST` unset (or empty in `.env`): your BFF then finds the local auction-server
-   through Docker DNS. Open <http://localhost:8080>. Your BFF still has the workshop TODO. Apply the solution so you can
+   through Docker DNS. Open <http://localhost:8080>, and the projector layout at
+   <http://localhost:8080/?view=stage>. The bots bid in every round, so the round number climbs and
+   the winners wall fills. Your BFF still has the workshop TODO. Apply the solution so you can
    bid too: `cp workshop/solution/AuctionEndpoints.cs bff/` (or live-code it during the workshop and
    `git checkout bff/AuctionEndpoints.cs` afterwards).
 
@@ -37,10 +39,13 @@ Everything you need to run the live auction on the day. The talk itself is in
 | "Before we start" slide | Everyone runs `cp .env.example .env` and starts `docker compose build` |
 | Workshop | Walk the room. Watch the server log: every participant's first `PlaceBid` shows up as `unary … code=OK` from their IP |
 | End of the workshop | Not everyone finishes. Leave the catch-up line on the "One possible solution" slide up: `cp workshop/solution/AuctionEndpoints.cs bff/` |
-| Live auction | Projector on the app in **polling** mode. Let the room bid for a lot, and point at "the whole room" panel: calls per second, and how many found nothing new. Switch the projector to 0.5s to show the polling dilemma. Then everyone flips to **streaming**: calls per second fall to zero, open streams climb, "bids seen after" drops to 0.00s |
+| Live auction | Projector on the **stage view**, <http://localhost:8080/?view=stage>, in **polling** mode. Let the room bid for a round or two, and point at the room chart: calls per second, and how many found nothing new. The golden eggs drop in batches, one per poll. Switch the projector to 0.5s to show the polling dilemma. Then everyone flips to **streaming**: calls per second slope to zero, open streams climb, "bids seen after" drops to 0.00s, and the eggs drop one at a time. The chart keeps its 90s history when you flip the projector |
+| After the reveal | Leave the stage on streaming (`?view=stage&transport=stream`): its own polling would otherwise show up in the room load it displays |
 | Q&A | Leave the auction running |
 
-Useful server flags (append to `command` in `compose.yaml`): `-lot-duration=60s`,
+Every round auctions the same Golden Goose again, and the winners wall on every screen lists the last
+ten sales (it starts empty when the server restarts). Useful server flags (append to `command` in
+`compose.yaml`): `-lot-duration=60s` (per round),
 `-snipe-window=10s`, `-intermission=8s`, `-bots=N`.
 
 ## Networking

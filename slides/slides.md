@@ -264,7 +264,7 @@ func (s *Service) PlaceBid(
 ```csharp
 var response = await auction.PlaceBidAsync(
     new PlaceBidRequest {
-        LotId = "rubber-duck",
+        LotId = "golden-goose",
         Bidder = "Ada",
         Amount = 120 });
 ```
@@ -496,7 +496,7 @@ layout: section
 
 <div class="cue">
   <div class="bar">you → the room · polling mode</div>
-  <div class="msg">Pick a name. Outbid your neighbour. Snipe the rubber duck.</div>
+  <div class="msg">Pick a name. Outbid your neighbour. Snipe the Golden Goose.</div>
   <div class="watch">
     <strong>Watch for:</strong> other people’s bids show up <span class="text-primary font-bold">about a second late</span> (“bids seen after”),
     the “on the wire” strip fills with <span class="text-primary font-bold">grey dots</span>, and on my screen the room’s
@@ -505,10 +505,12 @@ layout: section
 </div>
 
 <!--
-Let this run for a minute or two. Keep the presenter screen on the auction:
-the "whole room" panel shows every laptop's polls hitting my server, and how
-many found nothing new. The delay should feel slightly annoying: that's the
-point. Late bids extend the clock, so it gets frantic at the end of each lot.
+Let this run for a minute or two. Keep the projector on the stage view
+(localhost:8080/?view=stage): the room chart shows every laptop's polls hitting
+my server, and how many found nothing new. The golden eggs drop in batches, one
+batch per poll. The delay should feel slightly annoying: that's the point. Late
+bids extend the clock, so it gets frantic at the end of each round, and the
+winner goes up on the wall.
 Then the polling dilemma: switch the projector to 0.5s. Bids arrive sooner,
 and the room's calls per second jump. Faster polling buys freshness with load.
 -->
@@ -631,9 +633,10 @@ bff/AuctionEndpoints.cs, and it's already in your BFF.
 </div>
 
 <!--
-The payoff. Switch the projector to the auction app, in streaming mode. The
-"whole room" panel is the server's view: polls per second fall away over ten
-seconds as the room flips, and open WatchAuction streams jump. Then run a lot or two in streaming mode. Show the server
+The payoff. Switch the stage view to streaming. The room chart is the
+server's view: calls per second slope down over ten seconds as the room flips,
+and open WatchAuction streams climb, in one continuous 90s window. The eggs now
+drop one at a time, as each bid happens. Then run a round or two in streaming mode. Show the server
 terminal briefly: "stream opened" lines from every IP in the room.
 -->
 

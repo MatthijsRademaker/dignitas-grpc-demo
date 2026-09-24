@@ -7,7 +7,7 @@ option go_package = "github.com/dignitas/dignitas-grpc-demo/auction-server/gen/a
 
 import "google/protobuf/timestamp.proto";
 
-// One live auction: a single lot is open at a time, lots rotate forever.
+// One live auction: a single lot, auctioned again and again in rounds.
 service AuctionService {
   // Unary: ask once, get one answer. The current state of the auction.
   rpc GetAuction(GetAuctionRequest) returns (GetAuctionResponse);
@@ -95,6 +95,17 @@ message Auction {
   int64 remaining_ms = 6;
   int32 watchers = 7; // number of open WatchAuction streams
   ServerLoad load = 8;
+  int32 round = 9;             // 1 for the first lot opened, +1 every time a lot opens
+  int64 lot_duration_ms = 10;  // how long a lot opens for; late bids can extend it past this
+  repeated Sale winners = 11;  // earlier sold rounds, newest first, capped
+}
+
+// A round that closed with a winner. Held in memory only: a restart starts a fresh record.
+message Sale {
+  int32 round = 1;
+  string bidder = 2;
+  int64 amount = 3; // whole euros
+  google.protobuf.Timestamp sold_at = 4;
 }
 
 // What the whole room costs the server, averaged over the last few seconds.

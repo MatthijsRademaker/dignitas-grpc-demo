@@ -180,3 +180,113 @@ func TestLoadChangedIsNotNews(t *testing.T) {
 	default:
 	}
 }
+
+// closeRound bids (unless amount is 0), lets the round run out, and lets the intermission
+// pass, so the next round is open. It returns the LOT_CLOSED snapshot.
+func closeRound(t *testing.T, h *House, c *clock, bidder string, amount int64) *auctionv1.Auction {
+	t.Helper()
+	if amount > 0 {
+		if _, err := h.PlaceBid(h.Snapshot().GetLot().GetId(), bidder, amount); err != nil {
+			t.Fatal(err)
+		}
+	}
+	c.advance(60 * time.Second)
+	h.Tick()
+	closed := h.Snapshot()
+	c.advance(5 * time.Second)
+	h.Tick()
+	return closed
+}
+
+func TestRoundCountsEveryOpen(t *testing.T) {
+	c := &clock{t: time.Unix(0, 0)}
+	h := newTestHouse(c)
+
+	if got := h.Snapshot().GetRound(); got != 1 {
+		t.Fatalf("first round: got %d, want 1", got)
+	}
+	if _, err := h.PlaceBid("a", "ada", 10); err != nil {
+		t.Fatal(err)
+	}
+	c.advance(60 * time.Second)
+	h.Tick()
+	if a := h.Snapshot(); a.GetStatus() != auctionv1.LotStatus_LOT_STATUS_SOLD || a.GetRound() != 1 {
+		t.Fatalf("during the intermission: got status %v, round %d, want sold, round 1", a.GetStatus(), a.GetRound())
+	}
+	c.advance(5 * time.Second)
+	h.Tick()
+	if got := h.Snapshot().GetRound(); got != 2 {
+		t.Fatalf("after reopen: got %d, want 2", got)
+	}
+	closeRound(t, h, c, "", 0) // unsold rounds count too
+	if got := h.Snapshot().GetRound(); got != 3 {
+		t.Fatalf("after an unsold round: got %d, want 3", got)
+	}
+}
+
+func TestSoldRoundIsRecorded(t *testing.T) {
+	c := &clock{t: time.Unix(0, 0)}
+	h := newTestHouse(c)
+	events, stop := h.Watch()
+	defer stop()
+	<-events // snapshot
+
+	if _, err := h.PlaceBid("a", "ada", 85); err != nil {
+		t.Fatal(err)
+	}
+	<-events // bid placed
+	c.advance(60 * time.Second)
+	h.Tick()
+	e := <-events
+	winners := e.GetAuction().GetWinners()
+	if e.GetKind() != auctionv1.WatchAuctionResponse_KIND_LOT_CLOSED || len(winners) != 1 {
+		t.Fatalf("after close: got %v", e)
+	}
+	if w := winners[0]; w.GetRound() != 1 || w.GetBidder() != "ada" || w.GetAmount() != 85 || !w.GetSoldAt().AsTime().Equal(c.t) {
+		t.Fatalf("recorded sale: got %v", w)
+	}
+
+	c.advance(5 * time.Second)
+	h.Tick()
+	closeRound(t, h, c, "", 0)
+	if got := len(h.Snapshot().GetWinners()); got != 1 {
+		t.Fatalf("after an unsold round: got %d winners, want 1", got)
+	}
+}
+
+func TestWinnersAreCapped(t *testing.T) {
+	c := &clock{t: time.Unix(0, 0)}
+	// One lot, so every round has the same starting price.
+	h := NewHouse(Config{
+		Lots:         []*auctionv1.Lot{{Id: "a", StartingPrice: 10, MinIncrement: 5}},
+		LotDuration:  60 * time.Second,
+		SnipeWindow:  10 * time.Second,
+		Intermission: 5 * time.Second,
+		Now:          c.now,
+	})
+	for range winnersCap + 1 {
+		closeRound(t, h, c, "ada", 10)
+	}
+
+	winners := h.Snapshot().GetWinners()
+	if len(winners) != winnersCap {
+		t.Fatalf("winners: got %d, want %d", len(winners), winnersCap)
+	}
+	if newest, oldest := winners[0].GetRound(), winners[len(winners)-1].GetRound(); newest != winnersCap+1 || oldest != 2 {
+		t.Fatalf("rounds kept: got %d..%d, want %d..2", newest, oldest, winnersCap+1)
+	}
+}
+
+func TestLotDurationIsExposed(t *testing.T) {
+	c := &clock{t: time.Unix(0, 0)}
+	h := newTestHouse(c)
+
+	c.advance(55 * time.Second)
+	a, err := h.PlaceBid("a", "ada", 10) // extends the lot past its configured duration
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := a.GetLotDurationMs(); got != 60_000 {
+		t.Fatalf("lot duration: got %dms, want 60000ms", got)
+	}
+}

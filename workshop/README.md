@@ -22,7 +22,7 @@ cp .env.example .env
 docker compose up --build --watch
 ```
 
-Open <http://localhost:8080>. You should see the lot currently on the block, with live bids.
+Open <http://localhost:8080>. You should see the Golden Goose on the block, with live bids.
 That already works: the prebuilt `GET /api/auction` endpoint makes a unary `GetAuction` gRPC call.
 
 Now try to place a bid. You'll get **"Workshop time"**. That's the part you build.
@@ -63,7 +63,7 @@ Open [`bff/AuctionEndpoints.cs`](../bff/AuctionEndpoints.cs) and find the `WORKS
 
 ## 4. Try it
 
-- Bid on the lot. Your name should appear in the bid feed on **everyone's** screen.
+- Bid on the goose. Your name should appear in the bid feed on **everyone's** screen.
 - Bid below the minimum. What does the frontend show?
 
 ## Stretch goals
@@ -78,7 +78,7 @@ Open [`bff/AuctionEndpoints.cs`](../bff/AuctionEndpoints.cs) and find the `WORKS
    docker run --rm fullstorydev/grpcurl -plaintext <presenter-ip>:50051 list
    docker run --rm fullstorydev/grpcurl -plaintext <presenter-ip>:50051 describe auction.v1.PlaceBidRequest
    docker run --rm fullstorydev/grpcurl -plaintext \
-     -d '{"lot_id":"rubber-duck","bidder":"grpcurl","amount":1}' \
+     -d '{"lot_id":"golden-goose","bidder":"grpcurl","amount":1}' \
      <presenter-ip>:50051 auction.v1.AuctionService/PlaceBid
    ```
 

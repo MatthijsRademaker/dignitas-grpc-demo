@@ -24,6 +24,14 @@ export interface ServerLoad {
   pushesPerSecond: number
 }
 
+/** A round that closed with a winner. */
+export interface Sale {
+  round: number
+  bidder: string
+  amount: number
+  soldAt: string
+}
+
 export type LotStatus = 'open' | 'sold' | 'unsold'
 
 export interface Auction {
@@ -35,6 +43,13 @@ export interface Auction {
   remainingMs: number
   watchers: number
   load: ServerLoad
+  // Optional: an older BFF or server doesn't send these. 0 means the same for `round`.
+  /** Which round of the lot is on the block: 1 for the first after the server started. */
+  round?: number
+  /** How long a round opens for. Late bids can extend it past this. */
+  lotDurationMs?: number
+  /** Earlier sold rounds, newest first. */
+  winners?: Sale[]
 }
 
 export type AuctionEventKind = 'snapshot' | 'bid_placed' | 'lot_opened' | 'lot_closed' | 'watchers_changed' | 'load_changed'
@@ -54,6 +69,11 @@ export type Result<T> = { ok: true, value: T } | { ok: false, problem: Problem }
 
 export function bidKey (bid: Bid): string {
   return bid.placedAt + bid.bidder
+}
+
+/** Tells rounds apart. The lot id alone no longer does: the same goose is auctioned every round. */
+export function roundKey (auction: Auction): string {
+  return `${auction.lot.id}#${auction.round ?? 0}`
 }
 
 export function minimumBid (auction: Auction): number {

@@ -1,5 +1,5 @@
 import { onScopeDispose, reactive, shallowRef, watch, type Ref } from 'vue'
-import { bidKey, getAuction, type Auction, type AuctionEvent } from './api'
+import { bidKey, getAuction, roundKey, type Auction, type AuctionEvent, type Bid } from './api'
 
 export type Transport = 'poll' | 'stream'
 
@@ -12,6 +12,21 @@ export interface Tick {
   changed: boolean
 }
 
+/** What this browser sent and received since it last changed transport or poll interval. */
+export interface FeedStats {
+  requests: number
+  messages: number
+  lastKind: string
+  ticks: Tick[]
+  delays: number[]
+}
+
+/**
+ * Called with the bids this page sees for the first time, once per response or event, newest
+ * first. `initial`: they were already there when the page loaded, rather than new.
+ */
+export type NewBidsListener = (bids: Bid[], initial: boolean) => void
+
 /**
  * Keeps `auction` up to date, either by polling GET /api/auction (unary gRPC behind the BFF)
  * or by listening to GET /api/auction/stream (server-streaming gRPC, translated to SSE).
@@ -23,28 +38,36 @@ export function useAuctionFeed (transport: Ref<Transport>, pollIntervalMs: Ref<n
   const auction = shallowRef<Auction | null>(null)
   const receivedAt = shallowRef(0)
   const error = shallowRef<string | null>(null)
-  const stats = reactive({ requests: 0, messages: 0, lastKind: '' as string, ticks: [] as Tick[], delays: [] as number[] })
+  const stats = reactive<FeedStats>({ requests: 0, messages: 0, lastKind: '', ticks: [], delays: [] })
   /** Delay per bid, the first time this page saw it. `null`: it was already there when the page loaded. */
   const seenAfter = reactive(new Map<string, number | null>())
+
+  const newBidsListeners: NewBidsListener[] = []
 
   let stop = () => {}
 
   function apply (next: Auction, fromFeed = true) {
     const previous = auction.value
     const changed = !previous
-      || previous.lot.id !== next.lot.id
+      || roundKey(previous) !== roundKey(next)
       || previous.status !== next.status
       || previous.bidCount !== next.bidCount
       || previous.watchers !== next.watchers
-    if (previous && previous.lot.id !== next.lot.id) seenAfter.clear()
+    if (previous && roundKey(previous) !== roundKey(next)) seenAfter.clear()
+    const newBids: Bid[] = []
     for (const bid of next.recentBids) {
       if (seenAfter.has(bidKey(bid))) continue
       seenAfter.set(bidKey(bid), previous ? bid.ageMs : null)
+      newBids.push(bid)
       // Your own bids come back in the PlaceBid response: only count what the feed delivered.
       if (previous && fromFeed) stats.delays = [...stats.delays.slice(-19), bid.ageMs]
     }
     auction.value = next
     receivedAt.value = Date.now()
+    // After `auction` is set, so a listener that watches it already sees the new round.
+    if (newBids.length > 0) {
+      for (const listener of newBidsListeners) listener(newBids, !previous)
+    }
     return changed
   }
 
@@ -110,5 +133,9 @@ export function useAuctionFeed (transport: Ref<Transport>, pollIntervalMs: Ref<n
 
   onScopeDispose(() => stop())
 
-  return { auction, receivedAt, error, stats, seenAfter, apply: (next: Auction) => apply(next, false) }
+  function onNewBids (listener: NewBidsListener) {
+    newBidsListeners.push(listener)
+  }
+
+  return { auction, receivedAt, error, stats, seenAfter, onNewBids, apply: (next: Auction) => apply(next, false) }
 }

@@ -17,6 +17,11 @@ public record BidDto(string Bidder, long Amount, DateTimeOffset PlacedAt, long A
     public static BidDto From(Bid bid) => new(bid.Bidder, bid.Amount, bid.PlacedAt.ToDateTimeOffset(), bid.AgeMs);
 }
 
+public record SaleDto(int Round, string Bidder, long Amount, DateTimeOffset SoldAt)
+{
+    public static SaleDto From(Sale sale) => new(sale.Round, sale.Bidder, sale.Amount, sale.SoldAt.ToDateTimeOffset());
+}
+
 public record ServerLoadDto(double PollsPerSecond, double EmptyPollRatio, double PushesPerSecond)
 {
     // An older server that doesn't send load yet: report nothing rather than fail.
@@ -32,7 +37,10 @@ public record AuctionDto(
     int BidCount,
     long RemainingMs,
     int Watchers,
-    ServerLoadDto Load)
+    ServerLoadDto Load,
+    int Round,
+    long LotDurationMs,
+    IReadOnlyList<SaleDto> Winners)
 {
     public static AuctionDto From(Auction auction) => new(
         LotDto.From(auction.Lot),
@@ -49,7 +57,11 @@ public record AuctionDto(
         auction.BidCount,
         auction.RemainingMs,
         auction.Watchers,
-        ServerLoadDto.From(auction.Load));
+        ServerLoadDto.From(auction.Load),
+        auction.Round,
+        auction.LotDurationMs,
+        // Repeated fields are never null: an older server without winners just sends an empty list.
+        auction.Winners.Select(SaleDto.From).ToList());
 }
 
 public record AuctionEventDto(string Kind, AuctionDto Auction)

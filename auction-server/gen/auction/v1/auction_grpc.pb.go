@@ -28,7 +28,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// One live auction: a single lot is open at a time, lots rotate forever.
+// One live auction: a single lot, auctioned again and again in rounds.
 type AuctionServiceClient interface {
 	// Unary: ask once, get one answer. The current state of the auction.
 	GetAuction(ctx context.Context, in *GetAuctionRequest, opts ...grpc.CallOption) (*GetAuctionResponse, error)
@@ -94,7 +94,7 @@ type AuctionService_WatchAuctionClient = grpc.ServerStreamingClient[WatchAuction
 // All implementations must embed UnimplementedAuctionServiceServer
 // for forward compatibility.
 //
-// One live auction: a single lot is open at a time, lots rotate forever.
+// One live auction: a single lot, auctioned again and again in rounds.
 type AuctionServiceServer interface {
 	// Unary: ask once, get one answer. The current state of the auction.
 	GetAuction(context.Context, *GetAuctionRequest) (*GetAuctionResponse, error)

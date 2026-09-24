@@ -18,20 +18,20 @@ const frenzyBelow = 15 * time.Second
 // rehearsing alone. They bid in-process, not over gRPC.
 //
 // Like people, they are quiet while the clock is long and pile in when it runs out.
-// That shows both costs of polling in one lot: requests that find nothing early on,
+// That shows both costs of polling in one round: requests that find nothing early on,
 // and news that arrives late during the frenzy at the end.
 func RunBots(ctx context.Context, house *House, n int) {
 	for i := range n {
 		go func() {
 			name := botNames[i%len(botNames)]
-			var lotID string
+			var round int32
 			var budget int64
 			for {
 				auction := house.Snapshot()
 				lot := auction.GetLot()
-				if lot.GetId() != lotID {
-					// A new lot: decide how far this bot goes before it drops out.
-					lotID = lot.GetId()
+				if auction.GetRound() != round {
+					// A new round: decide how far this bot goes before it drops out.
+					round = auction.GetRound()
 					budget = lot.GetStartingPrice() + lot.GetMinIncrement()*(15+rand.Int64N(30))
 				}
 

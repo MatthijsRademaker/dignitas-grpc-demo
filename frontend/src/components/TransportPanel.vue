@@ -1,14 +1,16 @@
 <script setup lang="ts">
   import { computed } from 'vue'
-  import type { Tick, Transport } from '../useAuctionFeed'
+  import type { FeedStats, Transport } from '../useAuctionFeed'
 
-  const props = defineProps<{
+  const props = withDefaults(defineProps<{
     transport: Transport
     pollIntervalMs: number
-    stats: { requests: number, messages: number, lastKind: string, ticks: Tick[], delays: number[] }
+    stats: FeedStats
     error: string | null
     now: number
-  }>()
+    /** `compact`: only the "bids seen after" figure, for the stage. */
+    variant?: 'full' | 'compact'
+  }>(), { variant: 'full' })
 
   const WINDOW_MS = 30_000
 
@@ -16,13 +18,30 @@
     const { delays } = props.stats
     return delays.length === 0 ? null : delays.reduce((sum, d) => sum + d, 0) / delays.length
   })
+  const delayText = computed(() => averageDelay.value === null
+    ? '–'
+    : `${(averageDelay.value / 1000).toFixed(averageDelay.value < 1000 ? 2 : 1)}s`)
+  const fast = computed(() => averageDelay.value !== null && averageDelay.value < 300)
 </script>
 
 <template>
-  <section class="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-    <h3 class="text-xs font-bold tracking-widest text-muted uppercase">On the wire · this browser · last 30s</h3>
+  <section v-if="variant === 'compact'" class="flex flex-col gap-2">
+    <h3 class="text-[1.6rem] font-bold">Bids reach this screen after</h3>
+    <p class="text-[7rem] leading-none font-extrabold" :class="fast && 'text-primary'">{{ delayText }}</p>
+    <p class="text-[1.3rem] text-muted">
+      <template v-if="transport === 'poll'">Polling every {{ pollIntervalMs / 1000 }}s: news waits for the next ask</template>
+      <template v-else>Streaming: the server pushes as it happens</template>
+    </p>
+    <p v-if="error" class="text-[1.3rem] font-bold text-error">{{ error }}</p>
+  </section>
 
-    <div class="relative h-10 overflow-hidden rounded-lg bg-background">
+  <section v-else class="flex flex-col gap-4">
+    <div>
+      <h3 class="font-bold">On the wire</h3>
+      <p class="text-sm text-muted">This browser, last 30 seconds</p>
+    </div>
+
+    <div class="relative h-10 overflow-hidden rounded-xl bg-surface">
       <div class="absolute inset-y-0 right-0 w-px bg-primary/40" />
       <span
         v-for="tick in stats.ticks"
@@ -33,22 +52,20 @@
       />
     </div>
 
-    <dl class="grid grid-cols-3 gap-3 text-sm">
-      <div class="rounded-lg bg-background p-3">
+    <dl class="grid grid-cols-3 gap-2 text-sm">
+      <div class="rounded-xl bg-surface p-3">
         <dt class="text-muted">HTTP requests</dt>
-        <dd class="text-2xl font-black tabular-nums">{{ stats.requests }}</dd>
+        <dd class="text-2xl font-extrabold tabular-nums">{{ stats.requests }}</dd>
       </div>
-      <div class="rounded-lg bg-background p-3">
+      <div class="rounded-xl bg-surface p-3">
         <dt class="text-muted">{{ transport === 'poll' ? 'With news' : 'Events pushed' }}</dt>
-        <dd class="text-2xl font-black tabular-nums">
+        <dd class="text-2xl font-extrabold tabular-nums">
           {{ transport === 'poll' ? stats.ticks.filter(t => t.changed).length : stats.messages }}
         </dd>
       </div>
-      <div class="rounded-lg bg-background p-3">
+      <div class="rounded-xl bg-surface p-3">
         <dt class="text-muted">Bids seen after</dt>
-        <dd class="text-2xl font-black tabular-nums" :class="averageDelay !== null && averageDelay < 300 ? 'text-primary' : ''">
-          {{ averageDelay === null ? '–' : `${(averageDelay / 1000).toFixed(averageDelay < 1000 ? 2 : 1)}s` }}
-        </dd>
+        <dd class="text-2xl font-extrabold tabular-nums" :class="fast && 'text-primary'">{{ delayText }}</dd>
       </div>
     </dl>
 
@@ -65,6 +82,6 @@
       </template>
     </p>
 
-    <p v-if="error" class="rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{{ error }}</p>
+    <p v-if="error" class="rounded-xl bg-error/10 px-3 py-2 text-sm text-error">{{ error }}</p>
   </section>
 </template>

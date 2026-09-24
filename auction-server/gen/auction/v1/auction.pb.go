@@ -576,6 +576,9 @@ type Auction struct {
 	RemainingMs   int64       `protobuf:"varint,6,opt,name=remaining_ms,json=remainingMs,proto3" json:"remaining_ms,omitempty"`
 	Watchers      int32       `protobuf:"varint,7,opt,name=watchers,proto3" json:"watchers,omitempty"` // number of open WatchAuction streams
 	Load          *ServerLoad `protobuf:"bytes,8,opt,name=load,proto3" json:"load,omitempty"`
+	Round         int32       `protobuf:"varint,9,opt,name=round,proto3" json:"round,omitempty"`                                         // 1 for the first lot opened, +1 every time a lot opens
+	LotDurationMs int64       `protobuf:"varint,10,opt,name=lot_duration_ms,json=lotDurationMs,proto3" json:"lot_duration_ms,omitempty"` // how long a lot opens for; late bids can extend it past this
+	Winners       []*Sale     `protobuf:"bytes,11,rep,name=winners,proto3" json:"winners,omitempty"`                                     // earlier sold rounds, newest first, capped
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -666,6 +669,96 @@ func (x *Auction) GetLoad() *ServerLoad {
 	return nil
 }
 
+func (x *Auction) GetRound() int32 {
+	if x != nil {
+		return x.Round
+	}
+	return 0
+}
+
+func (x *Auction) GetLotDurationMs() int64 {
+	if x != nil {
+		return x.LotDurationMs
+	}
+	return 0
+}
+
+func (x *Auction) GetWinners() []*Sale {
+	if x != nil {
+		return x.Winners
+	}
+	return nil
+}
+
+// A round that closed with a winner. Held in memory only: a restart starts a fresh record.
+type Sale struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Round         int32                  `protobuf:"varint,1,opt,name=round,proto3" json:"round,omitempty"`
+	Bidder        string                 `protobuf:"bytes,2,opt,name=bidder,proto3" json:"bidder,omitempty"`
+	Amount        int64                  `protobuf:"varint,3,opt,name=amount,proto3" json:"amount,omitempty"` // whole euros
+	SoldAt        *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=sold_at,json=soldAt,proto3" json:"sold_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Sale) Reset() {
+	*x = Sale{}
+	mi := &file_auction_v1_auction_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Sale) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Sale) ProtoMessage() {}
+
+func (x *Sale) ProtoReflect() protoreflect.Message {
+	mi := &file_auction_v1_auction_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Sale.ProtoReflect.Descriptor instead.
+func (*Sale) Descriptor() ([]byte, []int) {
+	return file_auction_v1_auction_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *Sale) GetRound() int32 {
+	if x != nil {
+		return x.Round
+	}
+	return 0
+}
+
+func (x *Sale) GetBidder() string {
+	if x != nil {
+		return x.Bidder
+	}
+	return ""
+}
+
+func (x *Sale) GetAmount() int64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *Sale) GetSoldAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SoldAt
+	}
+	return nil
+}
+
 // What the whole room costs the server, averaged over the last few seconds.
 type ServerLoad struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
@@ -678,7 +771,7 @@ type ServerLoad struct {
 
 func (x *ServerLoad) Reset() {
 	*x = ServerLoad{}
-	mi := &file_auction_v1_auction_proto_msgTypes[9]
+	mi := &file_auction_v1_auction_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -690,7 +783,7 @@ func (x *ServerLoad) String() string {
 func (*ServerLoad) ProtoMessage() {}
 
 func (x *ServerLoad) ProtoReflect() protoreflect.Message {
-	mi := &file_auction_v1_auction_proto_msgTypes[9]
+	mi := &file_auction_v1_auction_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -703,7 +796,7 @@ func (x *ServerLoad) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerLoad.ProtoReflect.Descriptor instead.
 func (*ServerLoad) Descriptor() ([]byte, []int) {
-	return file_auction_v1_auction_proto_rawDescGZIP(), []int{9}
+	return file_auction_v1_auction_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ServerLoad) GetPollsPerSecond() float64 {
@@ -765,7 +858,7 @@ const file_auction_v1_auction_proto_rawDesc = "" +
 	"\x06bidder\x18\x01 \x01(\tR\x06bidder\x12\x16\n" +
 	"\x06amount\x18\x02 \x01(\x03R\x06amount\x127\n" +
 	"\tplaced_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bplacedAt\x12\x15\n" +
-	"\x06age_ms\x18\x04 \x01(\x03R\x05ageMs\"\xc7\x02\n" +
+	"\x06age_ms\x18\x04 \x01(\x03R\x05ageMs\"\xb1\x03\n" +
 	"\aAuction\x12!\n" +
 	"\x03lot\x18\x01 \x01(\v2\x0f.auction.v1.LotR\x03lot\x12-\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x15.auction.v1.LotStatusR\x06status\x120\n" +
@@ -776,7 +869,16 @@ const file_auction_v1_auction_proto_rawDesc = "" +
 	"\tbid_count\x18\x05 \x01(\x05R\bbidCount\x12!\n" +
 	"\fremaining_ms\x18\x06 \x01(\x03R\vremainingMs\x12\x1a\n" +
 	"\bwatchers\x18\a \x01(\x05R\bwatchers\x12*\n" +
-	"\x04load\x18\b \x01(\v2\x16.auction.v1.ServerLoadR\x04load\"\x8c\x01\n" +
+	"\x04load\x18\b \x01(\v2\x16.auction.v1.ServerLoadR\x04load\x12\x14\n" +
+	"\x05round\x18\t \x01(\x05R\x05round\x12&\n" +
+	"\x0flot_duration_ms\x18\n" +
+	" \x01(\x03R\rlotDurationMs\x12*\n" +
+	"\awinners\x18\v \x03(\v2\x10.auction.v1.SaleR\awinners\"\x81\x01\n" +
+	"\x04Sale\x12\x14\n" +
+	"\x05round\x18\x01 \x01(\x05R\x05round\x12\x16\n" +
+	"\x06bidder\x18\x02 \x01(\tR\x06bidder\x12\x16\n" +
+	"\x06amount\x18\x03 \x01(\x03R\x06amount\x123\n" +
+	"\asold_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06soldAt\"\x8c\x01\n" +
 	"\n" +
 	"ServerLoad\x12(\n" +
 	"\x10polls_per_second\x18\x01 \x01(\x01R\x0epollsPerSecond\x12(\n" +
@@ -806,7 +908,7 @@ func file_auction_v1_auction_proto_rawDescGZIP() []byte {
 }
 
 var file_auction_v1_auction_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_auction_v1_auction_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_auction_v1_auction_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_auction_v1_auction_proto_goTypes = []any{
 	(LotStatus)(0),                 // 0: auction.v1.LotStatus
 	(WatchAuctionResponse_Kind)(0), // 1: auction.v1.WatchAuctionResponse.Kind
@@ -819,31 +921,34 @@ var file_auction_v1_auction_proto_goTypes = []any{
 	(*Lot)(nil),                    // 8: auction.v1.Lot
 	(*Bid)(nil),                    // 9: auction.v1.Bid
 	(*Auction)(nil),                // 10: auction.v1.Auction
-	(*ServerLoad)(nil),             // 11: auction.v1.ServerLoad
-	(*timestamppb.Timestamp)(nil),  // 12: google.protobuf.Timestamp
+	(*Sale)(nil),                   // 11: auction.v1.Sale
+	(*ServerLoad)(nil),             // 12: auction.v1.ServerLoad
+	(*timestamppb.Timestamp)(nil),  // 13: google.protobuf.Timestamp
 }
 var file_auction_v1_auction_proto_depIdxs = []int32{
 	10, // 0: auction.v1.GetAuctionResponse.auction:type_name -> auction.v1.Auction
 	10, // 1: auction.v1.PlaceBidResponse.auction:type_name -> auction.v1.Auction
 	1,  // 2: auction.v1.WatchAuctionResponse.kind:type_name -> auction.v1.WatchAuctionResponse.Kind
 	10, // 3: auction.v1.WatchAuctionResponse.auction:type_name -> auction.v1.Auction
-	12, // 4: auction.v1.Bid.placed_at:type_name -> google.protobuf.Timestamp
+	13, // 4: auction.v1.Bid.placed_at:type_name -> google.protobuf.Timestamp
 	8,  // 5: auction.v1.Auction.lot:type_name -> auction.v1.Lot
 	0,  // 6: auction.v1.Auction.status:type_name -> auction.v1.LotStatus
 	9,  // 7: auction.v1.Auction.highest_bid:type_name -> auction.v1.Bid
 	9,  // 8: auction.v1.Auction.recent_bids:type_name -> auction.v1.Bid
-	11, // 9: auction.v1.Auction.load:type_name -> auction.v1.ServerLoad
-	2,  // 10: auction.v1.AuctionService.GetAuction:input_type -> auction.v1.GetAuctionRequest
-	4,  // 11: auction.v1.AuctionService.PlaceBid:input_type -> auction.v1.PlaceBidRequest
-	6,  // 12: auction.v1.AuctionService.WatchAuction:input_type -> auction.v1.WatchAuctionRequest
-	3,  // 13: auction.v1.AuctionService.GetAuction:output_type -> auction.v1.GetAuctionResponse
-	5,  // 14: auction.v1.AuctionService.PlaceBid:output_type -> auction.v1.PlaceBidResponse
-	7,  // 15: auction.v1.AuctionService.WatchAuction:output_type -> auction.v1.WatchAuctionResponse
-	13, // [13:16] is the sub-list for method output_type
-	10, // [10:13] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	12, // 9: auction.v1.Auction.load:type_name -> auction.v1.ServerLoad
+	11, // 10: auction.v1.Auction.winners:type_name -> auction.v1.Sale
+	13, // 11: auction.v1.Sale.sold_at:type_name -> google.protobuf.Timestamp
+	2,  // 12: auction.v1.AuctionService.GetAuction:input_type -> auction.v1.GetAuctionRequest
+	4,  // 13: auction.v1.AuctionService.PlaceBid:input_type -> auction.v1.PlaceBidRequest
+	6,  // 14: auction.v1.AuctionService.WatchAuction:input_type -> auction.v1.WatchAuctionRequest
+	3,  // 15: auction.v1.AuctionService.GetAuction:output_type -> auction.v1.GetAuctionResponse
+	5,  // 16: auction.v1.AuctionService.PlaceBid:output_type -> auction.v1.PlaceBidResponse
+	7,  // 17: auction.v1.AuctionService.WatchAuction:output_type -> auction.v1.WatchAuctionResponse
+	15, // [15:18] is the sub-list for method output_type
+	12, // [12:15] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_auction_v1_auction_proto_init() }
@@ -857,7 +962,7 @@ func file_auction_v1_auction_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auction_v1_auction_proto_rawDesc), len(file_auction_v1_auction_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   10,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
