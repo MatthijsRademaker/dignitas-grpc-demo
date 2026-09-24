@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package auction.v1;
+
+option csharp_namespace = "Dignitas.Auction.V1";
+option go_package = "github.com/dignitas/dignitas-grpc-demo/auction-server/gen/auction/v1;auctionv1";
+
+import "google/protobuf/timestamp.proto";
+
+// One live auction: a single lot is open at a time, lots rotate forever.
+service AuctionService {
+  // Unary: ask once, get one answer. The current state of the auction.
+  rpc GetAuction(GetAuctionRequest) returns (GetAuctionResponse);
+
+  // Unary: place a bid on the open lot.
+  // Rejected bids come back as gRPC status codes, not as a "success: false" body:
+  //   INVALID_ARGUMENT     bidder missing or amount <= 0
+  //   FAILED_PRECONDITION  lot is closed, or the bid is not high enough
+  rpc PlaceBid(PlaceBidRequest) returns (PlaceBidResponse);
+
+  // Server streaming: ask once, get an answer every time something changes.
+  // The first message is always a SNAPSHOT of the current state.
+  rpc WatchAuction(WatchAuctionRequest) returns (stream WatchAuctionResponse);
+}
+
+// Every RPC gets its own request and response message, even when they only
+// wrap one field: that leaves room to add fields later without breaking anyone.
+message GetAuctionRequest {}
+
+message GetAuctionResponse {
+  Auction auction = 1;
+}
+
+message PlaceBidRequest {
+  string lot_id = 1;
+  string bidder = 2;
+  int64 amount = 3; // whole euros
+}
+
+message PlaceBidResponse {
+  Auction auction = 1;
+}
+
+message WatchAuctionRequest {}
+
+message WatchAuctionResponse {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_SNAPSHOT = 1;
+    KIND_BID_PLACED = 2;
+    KIND_LOT_OPENED = 3;
+    KIND_LOT_CLOSED = 4;
+    KIND_WATCHERS_CHANGED = 5;
+  }
+
+  Kind kind = 1;
+  Auction auction = 2; // full state after the change
+}
+
+message Lot {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  string emoji = 4;
+  int64 starting_price = 5;
+  int64 min_increment = 6;
+}
+
+message Bid {
+  string bidder = 1;
+  int64 amount = 2;
+  google.protobuf.Timestamp placed_at = 3;
+}
+
+enum LotStatus {
+  LOT_STATUS_UNSPECIFIED = 0;
+  LOT_STATUS_OPEN = 1;
+  LOT_STATUS_SOLD = 2;
+  LOT_STATUS_UNSOLD = 3;
+}
+
+message Auction {
+  Lot lot = 1;
+  LotStatus status = 2;
+  Bid highest_bid = 3;          // unset until the first bid
+  repeated Bid recent_bids = 4; // newest first, capped
+  int32 bid_count = 5;
+  // Open: until the lot closes. Sold/unsold: until the next lot opens.
+  // Relative instead of an absolute timestamp, so clients never depend on
+  // their clock being in sync with the server.
+  int64 remaining_ms = 6;
+  int32 watchers = 7; // number of open WatchAuction streams
+}

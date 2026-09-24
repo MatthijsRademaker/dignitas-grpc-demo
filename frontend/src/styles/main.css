@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+/* `inline`: v0 scopes its variables to the element carrying data-theme (#app), so utilities
+   must reference them directly instead of through a variable resolved on :root. */
+@theme inline {
+  --color-primary: var(--v0-primary);
+  --color-on-primary: var(--v0-on-primary);
+  --color-surface: var(--v0-surface);
+  --color-on-surface: var(--v0-on-surface);
+  --color-background: var(--v0-background);
+  --color-muted: var(--v0-muted);
+  --color-border: var(--v0-border);
+  --color-success: var(--v0-success);
+  --color-warning: var(--v0-warning);
+  --color-error: var(--v0-error);
+}
+
+@theme {
+  --font-sans: "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fira Code", ui-monospace, monospace;
+
+  --animate-flash: flash 0.9s ease-out;
+  @keyframes flash {
+    0% { background-color: color-mix(in srgb, var(--v0-primary) 35%, transparent); transform: scale(1.06); }
+    100% { background-color: transparent; transform: scale(1); }
+  }
+}
+
+#app {
+  @apply min-h-screen bg-background text-on-surface font-sans antialiased;
+}

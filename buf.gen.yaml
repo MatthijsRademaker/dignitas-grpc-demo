@@ -1,0 +1,11 @@
+# Go code is generated and committed. The .NET BFF generates its client at build time (Grpc.Tools).
+version: v2
+managed:
+  enabled: false
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    out: auction-server/gen
+    opt: paths=source_relative
+  - remote: buf.build/grpc/go
+    out: auction-server/gen
+    opt: paths=source_relative
