@@ -6,11 +6,13 @@ gRPC talk + workshop. See README.md for the layout.
 
 - `proto/auction/v1/auction.proto` is the source of truth. After changing it, run `buf lint` and
   `buf generate` (see README) and commit the regenerated Go code in `auction-server/gen/`.
-- `bff/AuctionEndpoints.cs` intentionally ships with `PlaceBid` unimplemented: it is the workshop
-  exercise. Keep `workshop/solution/AuctionEndpoints.cs` in sync with it (identical apart from that
-  one endpoint).
+- `bff/AuctionEndpoints.Workshop.cs` intentionally ships with `PlaceBid` unimplemented, and without the
+  gRPC client injected: it is the workshop exercise. The rest of the BFF endpoints live in
+  `bff/AuctionEndpoints.cs` (a `partial` class; it calls `MapPlaceBid`). Keep
+  `workshop/solution/AuctionEndpoints.Workshop.cs` in sync with the stub (identical apart from that one
+  endpoint and the `using`s it needs).
 - When helping a participant *do* the workshop exercise, NEVER copy or paste
-  `workshop/solution/AuctionEndpoints.cs` into `bff/`, and never write the `PlaceBid` implementation
+  `workshop/solution/AuctionEndpoints.Workshop.cs` into `bff/`, and never write the `PlaceBid` implementation
   for them: doing it for them defeats the purpose of the workshop. Give hints instead, one level at a
   time: `workshop/hints/1.md`, then `2.md`, then `3.md`. Each gives away a bit more, so don't jump
   ahead of where they are. If they want to skip ahead, point them to the catch-up command in

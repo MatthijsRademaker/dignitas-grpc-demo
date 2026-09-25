@@ -38,7 +38,7 @@
           </template>
           <template v-else>
             <h2 class="font-display text-4xl leading-tight font-semibold tracking-tight">A mystery lot</h2>
-            <p class="mt-2 max-w-prose text-muted">Something is under the cloth. Implement PlaceBid in bff/AuctionEndpoints.cs to find out what you are bidding on.</p>
+            <p class="mt-2 max-w-prose text-muted">Something is under the cloth. Implement PlaceBid in bff/AuctionEndpoints.Workshop.cs to find out what you are bidding on.</p>
           </template>
         </div>
 

@@ -42,15 +42,19 @@ Open [`proto/auction/v1/auction.proto`](../proto/auction/v1/auction.proto) and f
 You don't write the gRPC client. `Grpc.Tools` generates it from the proto on every build (see the `<Protobuf>` item
 in [`bff/Bff.csproj`](../bff/Bff.csproj)).
 
-- **With the .NET SDK:** run `dotnet build` in `bff/` and type `auction.` in your IDE, or look for `PlaceBidAsync`
-  in `bff/obj/Debug/net10.0/auction/v1/AuctionGrpc.cs`.
+It's also registered for dependency injection in [`bff/Program.cs`](../bff/Program.cs) (`AddGrpcClient<...>`),
+so any endpoint can ask for it as a parameter. Find out what it's called.
+
+- **With the .NET SDK:** run `dotnet build` in `bff/` and look for `PlaceBidAsync` in
+  `bff/obj/Debug/net10.0/auction/v1/AuctionGrpc.cs`, or let your IDE autocomplete on the client.
 - **Docker only:** trust the proto. Every `rpc Foo` becomes `FooAsync(...)`, and every message becomes a C# class
   with PascalCase properties (`lot_id` becomes `LotId`).
 
 ## 4. Write the endpoint
 
-This is the challenge. Make `POST /bids` in [`bff/AuctionEndpoints.cs`](../bff/AuctionEndpoints.cs) place a real
-bid. `GET /auction`, right above it, is the same pattern for a different rpc.
+This is the challenge. Make `POST /bids` in [`bff/AuctionEndpoints.Workshop.cs`](../bff/AuctionEndpoints.Workshop.cs)
+place a real bid. The stub doesn't have the gRPC client yet: getting it into your endpoint is part of the job.
+`GET /auction` in [`bff/AuctionEndpoints.cs`](../bff/AuctionEndpoints.cs) is the same pattern for a different rpc.
 
 You're done when:
 
@@ -85,16 +89,16 @@ Save, wait a few seconds, and bid. Keep an eye on the cloth.
      <presenter-ip>:50051 auction.v1.AuctionService/PlaceBid
    ```
 
-4. **Read the streaming side.** `GET /auction/stream` in the same file turns the `WatchAuction` server stream into
+4. **Read the streaming side.** `GET /auction/stream` in `bff/AuctionEndpoints.cs` turns the `WatchAuction` server stream into
    Server-Sent Events. How does cancellation reach the server when you close the tab?
 
 ## Out of time?
 
-Try it yourself first. The full file is in [`solution/AuctionEndpoints.cs`](solution/AuctionEndpoints.cs). To catch
-up for the live auction:
+Try it yourself first. The full file is in
+[`solution/AuctionEndpoints.Workshop.cs`](solution/AuctionEndpoints.Workshop.cs). To catch up for the live auction:
 
 ```bash
-cp workshop/solution/AuctionEndpoints.cs bff/
+cp workshop/solution/AuctionEndpoints.Workshop.cs bff/
 ```
 
 `--watch` rebuilds the BFF by itself. Running natively? Restart `dotnet run`.
@@ -103,21 +107,34 @@ cp workshop/solution/AuctionEndpoints.cs bff/
 <summary>Show the solution</summary>
 
 ```csharp
-api.MapPost("/bids", async (PlaceBidBody body, AuctionService.AuctionServiceClient auction, CancellationToken ct) =>
-{
-    try
+api.MapPost(
+    "/bids",
+    async (
+        PlaceBidBody body,
+        AuctionService.AuctionServiceClient auction,
+        CancellationToken ct
+    ) =>
     {
-        var response = await auction.PlaceBidAsync(
-            new PlaceBidRequest { LotId = body.LotId, Bidder = body.Bidder, Amount = body.Amount },
-            deadline: DateTime.UtcNow.AddSeconds(2),
-            cancellationToken: ct);
-        return Results.Ok(AuctionDto.From(response.Auction));
+        try
+        {
+            var response = await auction.PlaceBidAsync(
+                new PlaceBidRequest
+                {
+                    LotId = body.LotId,
+                    Bidder = body.Bidder,
+                    Amount = body.Amount,
+                },
+                deadline: DateTime.UtcNow.AddSeconds(2),
+                cancellationToken: ct
+            );
+            return Results.Ok(AuctionDto.From(response.Auction));
+        }
+        catch (RpcException ex)
+        {
+            return ex.ToProblem();
+        }
     }
-    catch (RpcException ex)
-    {
-        return ex.ToProblem();
-    }
-});
+);
 ```
 
 </details>

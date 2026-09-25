@@ -1,11 +1,9 @@
 ---
 #theme: '@dignitas/slidev-theme'
-title: 'gRPC Auction House'
+title: "gRPC Auction House"
 info: |
   ## gRPC Auction House
-  Contracts, codegen and streams: a one-hour talk and workshop where the room becomes the demo.
-
-  A GenTech session by Matthijs Rademaker.
+  Contracts, codegen and streams
 duration: 60min
 ---
 
@@ -26,14 +24,14 @@ light up when we switch it to streaming.
 # The hour
 
 <div class="agenda">
-  <div class="slot"><span class="t">7′</span> Why gRPC: the mental model</div>
-  <div class="slot"><span class="t">7′</span> Reading a <code>.proto</code> file</div>
-  <div class="slot"><span class="t">5′</span> Under the hood: why it is fast</div>
-  <div class="slot hi"><span class="t">15′</span> Workshop: implement <code>PlaceBid</code></div>
-  <div class="slot hi"><span class="t">10′</span> Live auction: the whole room</div>
-  <div class="slot"><span class="t">7′</span> Streaming shapes and what they are for</div>
-  <div class="slot"><span class="t">4′</span> Trade-offs</div>
-  <div class="slot"><span class="t">5′</span> Questions</div>
+  <div class="slot">Why gRPC</div>
+  <div class="slot">Reading a <code>.proto</code> file</div>
+  <div class="slot">Under the hood: why it is fast</div>
+  <div class="slot hi">Workshop: implement <code>PlaceBid</code></div>
+  <div class="slot hi">Live auction</div>
+  <div class="slot">Four kinds of call and what they are for</div>
+  <div class="slot">Trade-offs</div>
+  <div class="slot">Questions</div>
 </div>
 
 <!--
@@ -79,7 +77,8 @@ POST /auctions/current/bids
 ```csharp
 await auction.GetAuctionAsync(new());
 await auction.PlaceBidAsync(new() {
-    Bidder = "Ada", Amount = 120 });
+    Bidder = "Ada", Amount = 120
+  });
 ```
 
   <p class="note">You design a <strong>contract</strong>. The client is generated from it.</p>
@@ -229,18 +228,6 @@ func (s *Service) PlaceBid(
 ```
 
 </div>
-<div>
-  <div class="lang-label">C# · your BFF calls</div>
-
-```csharp
-var response = await auction.PlaceBidAsync(
-    new PlaceBidRequest {
-        LotId = auction.Lot.Id,
-        Bidder = "Ada",
-        Amount = 120 });
-```
-
-</div>
 </div>
 
 <div class="gen mt-6">
@@ -323,11 +310,9 @@ layout: section
 
 ---
 
-
 <div class="flex justify-center mt-2">
   <RoomHub />
 </div>
-
 
 <!--
 Hub and spokes: one auction server on my machine, a frontend and BFF on yours,
@@ -372,14 +357,15 @@ what's under the cloth.
 
 ---
 
-# Your task: `bff/AuctionEndpoints.cs`
+# Your task: `bff/AuctionEndpoints.Workshop.cs`
 
 <div class="task-grid">
 <div>
 
 ```csharp
 api.MapPost("/bids", (PlaceBidBody body,
-    AuctionService.AuctionServiceClient auction,
+    // TODO inject RPC Service
+    // Generated from Protobuf contract
     CancellationToken ct) =>
 {
     // make this place a real bid
@@ -395,7 +381,6 @@ api.MapPost("/bids", (PlaceBidBody body,
       <li>the call can’t hang forever</li>
     </ul>
   </div>
-  <div class="hint"><b>Template</b> <code>GET /auction</code>, right above it.</div>
   <div class="hint"><b>Stuck?</b> <code>workshop/hints/1.md</code>, then 2, then 3. Each gives away a bit more.</div>
 </div>
 </div>
@@ -404,9 +389,9 @@ api.MapPost("/bids", (PlaceBidBody body,
 
 <!--
 About ten lines, and no recipe on screen on purpose: this is hard mode. Walk the
-room and send stuck people to the next hint, not the answer. Usual snags: no async
-on the lambda, AUCTION_HOST typos, my firewall. "Can't hang forever" means a
-deadline: gRPC has none by default. A cheer from a corner means someone just met the goose.
+room and send stuck people to the next hint, not the answer. Usual snags: getting the
+client injected (hint 2 names the type), no async on the lambda, AUCTION_HOST typos,
+my firewall. "Can't hang forever" means a deadline: gRPC has none by default. A cheer from a corner means someone just met the goose.
 -->
 
 <style>
@@ -441,9 +426,7 @@ api.MapPost("/bids", async (PlaceBidBody body, AuctionService.AuctionServiceClie
 });
 ```
 
-<p v-click class="mt-5 text-xl text-center">One typed call. <span class="text-primary font-bold">The contract did the rest.</span></p>
-
-<p v-click class="mt-4 text-lg text-center">Not done? <code>cp workshop/solution/AuctionEndpoints.cs bff/</code> and you’re in.</p>
+<p v-click class="mt-4 text-lg text-center">Didn’t finish in time? <code>cp workshop/solution/AuctionEndpoints.Workshop.cs bff/</code> and you’re in.</p>
 
 <!--
 Walk the highlights: the call, the deadline (gRPC has no default timeout), the
@@ -463,8 +446,7 @@ layout: section
 # Everyone: bid!
 
 <div class="cue">
-  <div class="bar">you → the room · polling mode</div>
-  <div class="msg">Pick a name. Outbid your neighbour. Snipe the Golden Goose.</div>
+  <div class="bar">polling mode</div>
   <div class="watch">
     <strong>Watch for:</strong> bids landing <span class="text-primary font-bold">a second late</span>,
     and golden eggs dropping <span class="text-primary font-bold">in batches</span>: one batch per poll.
@@ -567,8 +549,6 @@ async IAsyncEnumerable<AuctionEventDto> Watch(
 </div>
 </div>
 
-<p class="mt-3 text-center text-lg">Close the tab → <code>ct</code> fires → the gRPC stream is cancelled → the server stops sending.</p>
-
 <!--
 The BFF turns the gRPC stream into SSE, which every browser speaks. Lightly
 abbreviated; the real thing is already in your bff/AuctionEndpoints.cs.
@@ -609,113 +589,89 @@ every IP in the room.
 </style>
 
 ---
+
+# What we just built
+
+<table class="built">
+  <thead>
+    <tr><th></th><th>What you did</th><th>What gRPC did</th></tr>
+  </thead>
+  <tbody>
+    <tr v-click>
+      <td>Contract</td><td>Read <code>auction.proto</code></td>
+      <td>Generated the Go server and your C# client from it</td>
+    </tr>
+    <tr v-click>
+      <td>Unary</td><td>Wrote <code>POST /bids</code></td>
+      <td>One typed <code>PlaceBid</code> call, a deadline, status codes mapped to HTTP</td>
+    </tr>
+    <tr v-click>
+      <td>Polling</td><td>Asked <code>GetAuction</code> every 2s</td>
+      <td>Calls from every browser, most of them finding nothing new</td>
+    </tr>
+    <tr v-click>
+      <td>Streaming</td><td>Flipped one switch</td>
+      <td>One <code>WatchAuction</code> stream per browser, bids pushed as they land</td>
+    </tr>
+  </tbody>
+</table>
+
+<p v-click class="mt-5 text-center text-lg">Two languages, one contract, <span class="text-primary font-bold">no hand-written client</span>.</p>
+
+<!--
+Quick recap while the auction keeps running. Each row is something they did
+themselves in the last half hour. Don't dwell: the next section names the shapes.
+-->
+
+<style>
+.built { margin-top: 1.2rem; width: 100%; font-size: 0.95rem; border-collapse: separate; border-spacing: 0 0.35rem; }
+.built th { text-align: left; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.6; padding: 0 0.7rem; }
+.built td { padding: 0.55rem 0.7rem; background: color-mix(in srgb, currentColor 4%, transparent); }
+.built td:first-child { font-weight: 800; border-radius: 0.5rem 0 0 0.5rem; }
+.built td:last-child { border-radius: 0 0.5rem 0.5rem 0; background: color-mix(in srgb, var(--se-color-primary) 9%, transparent); }
+.built code { font-size: 0.82rem; }
+</style>
+
+---
 layout: section
 ---
 
-# Streaming shapes
+# Four kinds of call
 
 ---
 clicks: 3
 ---
 
-# Four shapes, one auction
+# One unary, three streams
 
 <StreamShapes class="mt-2" />
 
 <!--
-Unary: you built it. [click] Server streaming: you just watched it.
+Unary: you built it, and it is not a stream: one message each way. [click] Server
+streaming: you just watched it.
 [click] Client streaming: many up, one back, like a chunked upload.
 [click] Bidirectional: both sides talk whenever they like.
 -->
 
 ---
-
-# It was never about the auction
-
-<p class="text-xl mt-2">What we built was a server saying: <span class="text-primary font-bold">“I’ll tell you when something changes.”</span></p>
-
-<table class="shapes">
-  <thead>
-    <tr><th>What we want</th><th>How we fake it with HTTP</th><th>What it actually is</th><th>The gRPC shape</th></tr>
-  </thead>
-  <tbody>
-    <tr v-click>
-      <td>Order status on screen</td><td>Poll <code>GET /orders/42</code> every 2s</td><td>A subscription to changes</td>
-      <td><code>WatchOrder(…) returns (stream OrderUpdate)</code></td>
-    </tr>
-    <tr v-click>
-      <td>Deployment progress</td><td>Poll the job, guess when it’s done</td><td>A progress feed</td>
-      <td><code>Deploy(…) returns (stream Stage)</code></td>
-    </tr>
-    <tr v-click>
-      <td>Device telemetry and commands</td><td>POST every reading, poll for commands</td><td>A conversation</td>
-      <td><code>Connect(stream Reading) returns (stream Command)</code></td>
-    </tr>
-  </tbody>
-</table>
-
-<p v-click class="mt-5 text-center text-lg opacity-80">Not the only way to do it. Just the one that lives in your contract.</p>
-
-<!--
-For everyone whose day job isn't auctioning geese. Same pattern three times:
-what we want, how we fake it, what it really is.
--->
-
-<style>
-.shapes { margin-top: 1.2rem; width: 100%; font-size: 0.95rem; border-collapse: separate; border-spacing: 0 0.35rem; }
-.shapes th { text-align: left; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.6; padding: 0 0.7rem; }
-.shapes td { padding: 0.55rem 0.7rem; background: color-mix(in srgb, currentColor 4%, transparent); }
-.shapes td:first-child { font-weight: 800; border-radius: 0.5rem 0 0 0.5rem; }
-.shapes td:last-child { border-radius: 0 0.5rem 0.5rem 0; background: color-mix(in srgb, var(--se-color-primary) 9%, transparent); }
-.shapes code { font-size: 0.82rem; }
-</style>
-
+clicks: 3
 ---
 
-# Streaming isn’t only for live updates
+# How would you do this with REST?
 
-<div class="story">
-  <div class="bar">a war story · client streaming</div>
-  <div class="body">
-    <p>We needed large file uploads. Our gateway didn’t do chunked uploads well.</p>
-    <p class="mt-3">So we sent the blob as a <strong>client stream of chunks</strong> to a gRPC service, and it was <span class="text-primary font-bold">ridiculously fast</span> compared to the plain HTTP upload.</p>
+<RestVsGrpc class="mt-4" />
 
-```proto
-rpc Upload(stream Chunk) returns (UploadResult);
-```
-
-  </div>
-</div>
-
-<p class="mt-5 text-lg text-center">Not gRPC magic. Just the <span class="text-primary font-bold">streaming model</span>, and a gateway no longer in the way.</p>
-
-<!--
-Thirty seconds. A different reason to stream: not "live", just "not one huge
-request". Stay out of transport internals.
--->
-
-<style>
-.story { margin-top: 1.2rem; border: 2px solid color-mix(in srgb, var(--se-color-primary) 35%, transparent); border-radius: 0.75rem; overflow: hidden; max-width: 820px; }
-.story .bar { background: color-mix(in srgb, var(--se-color-primary) 14%, transparent); padding: 0.45rem 1rem; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.04em; }
-.story .body { padding: 1rem 1.2rem; font-size: 1.1rem; }
-.story pre { margin-top: 0.8rem; font-size: 1rem !important; }
-</style>
-
----
-
-# “Isn’t this just eventing?”
-
-<StreamVsBroker class="mt-4" />
-
-<p v-click class="mt-5 text-lg text-center">
-Live bidders watching <em>right now</em> → <span class="text-primary font-bold">stream</span>.
-Invoice the winner tomorrow, replay for audit → <span class="font-bold">broker</span>.
+<p v-click="3" class="mt-5 text-lg text-center">
+Need it delivered tomorrow, or replayed for audit? <span class="font-bold">That’s still a broker.</span>
 </p>
 
 <!--
-Ninety seconds. A stream is a direct pipe: both ends connected at the same time.
-A broker decouples them in time. You don't need a Service Bus for a live feed,
-and a stream won't replay yesterday for you.
+The obvious question: how would you build this without gRPC? At the edge
+the answer is the usual toolbox, and we used it too: the BFF turns the stream
+into SSE. [click] Behind the BFF it gets ad hoc: polling, webhooks, or a broker.
+[click] With gRPC it's one keyword in the contract, and the generated code on
+both sides handles cancellation and deadlines. [click] A stream is a direct pipe:
+both ends connected at the same time. Durability and replay are a broker's job.
 -->
 
 ---
@@ -725,8 +681,6 @@ layout: section
 # Trade-offs
 
 ---
-
-# The bill
 
 <div class="grid grid-cols-2 gap-6 mt-4">
 <div class="side good">
@@ -749,8 +703,6 @@ layout: section
 </div>
 </div>
 
-<p class="mt-6 text-2xl text-center font-bold">Worth it between services. <span class="text-primary">Overkill for a to-do app.</span></p>
-
 <!--
 Both columns, no hedging. "Should we do this everywhere?" No. Evolvable APIs: we
 did that today. round, lot_duration_ms and winners are fields 9 to 11, and no BFF
@@ -763,32 +715,6 @@ broke. Reflection is on: grpcurl -plaintext <ip>:50051 list works right now.
 .side h3 { font-weight: 800; font-size: 1.2rem; margin-bottom: 0.5rem; }
 .side ul { padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.98rem; }
 </style>
-
----
-clicks: 5
----
-
-# Five things to take home
-
-<div class="mt-6 grid grid-cols-1 gap-3 text-lg">
-  <div v-click class="take"><span class="n">1</span> gRPC: methods on a service, over HTTP/2, described in a <code>.proto</code>.</div>
-  <div v-click class="take"><span class="n">2</span> The contract comes first. The code is generated from it.</div>
-  <div v-click class="take"><span class="n">3</span> Field numbers, binary frames and multiplexing: small and fast.</div>
-  <div v-click class="take"><span class="n">4</span> “Tell me when something changes” is one keyword: <code>stream</code>.</div>
-  <div v-click class="take"><span class="n">5</span> Choose per boundary: JSON at the edge, gRPC between services, a broker when time matters.</div>
-</div>
-
-<style>
-.take { display: flex; align-items: center; gap: 0.9rem; padding: 0.7rem 1rem; border-radius: 0.6rem;
-  border: 1px solid color-mix(in srgb, var(--se-color-primary) 30%, transparent);
-  background: color-mix(in srgb, var(--se-color-primary) 6%, transparent); }
-.take .n { flex: none; width: 2rem; height: 2rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-weight: 800; color: #fff; background: var(--se-color-primary); }
-</style>
-
-<!--
-Recap, don't dwell. Then the closing line and questions.
--->
 
 ---
 layout: section
@@ -804,44 +730,6 @@ layout: section
 Thank you. Questions? Leave the stage view up during Q&A: people will keep
 bidding for the goose.
 -->
-
----
-layout: section
----
-
-# Backup
-
-<!--
-Only if asked during Q&A.
--->
-
----
-
-# “Why bother, if my frontend can’t use it?”
-
-<p class="text-lg mt-2">Sometimes you shouldn’t. Simple CRUD from browser to one backend? REST is fine. It pays off <strong>behind</strong> the BFF: fan-out, polyglot services, real-time pipelines.</p>
-
-<div class="path mt-6">
-  <div v-click class="step"><span class="n">1</span><b>Start simple</b><p>Unary gRPC behind the BFF. The browser keeps its JSON.</p></div>
-  <div v-click class="step"><span class="n">2</span><b>Need real-time?</b><p>The backend streams, the BFF translates to SSE or WebSockets. Tonight’s demo.</p></div>
-  <div v-click class="step"><span class="n">3</span><b>Advanced</b><p>The BFF keeps a live snapshot from streams; the frontend polls the BFF cheaply. Costs: a stateful BFF.</p></div>
-</div>
-
-<!--
-Backup (press g). The challenge: "the frontend still polls, so why invest?"
-Because the service-to-service contracts get cleaner anyway. Option 3 is an
-option, not a default: a stateful BFF is a real cost.
--->
-
-<style>
-.path { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-.step { position: relative; padding: 1rem 1.1rem 1rem; border-radius: 0.75rem; border: 1px solid color-mix(in srgb, var(--se-color-primary) 30%, transparent);
-  background: color-mix(in srgb, var(--se-color-primary) 5%, transparent); }
-.step .n { display: inline-flex; width: 1.8rem; height: 1.8rem; border-radius: 50%; align-items: center; justify-content: center;
-  font-weight: 800; color: #fff; background: var(--se-color-primary); margin-right: 0.5rem; }
-.step b { font-size: 1.1rem; }
-.step p { font-size: 0.92rem; margin-top: 0.5rem; }
-</style>
 
 ---
 

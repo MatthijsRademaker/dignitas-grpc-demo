@@ -15,8 +15,8 @@ Everything you need to run the live auction on the day. The talk itself is in
    through Docker DNS. Open <http://localhost:8080>, and the projector layout at
    <http://localhost:8080/?view=stage>. The bots bid in every round, so the round number climbs and
    the winners wall fills. Your BFF still has the workshop TODO, so you'll see a mystery lot under a cloth. Apply the solution so you can
-   bid too and see the goose: `cp workshop/solution/AuctionEndpoints.cs bff/` (or live-code it during the workshop,
-   and the projector reveals the goose to the room when you save; `git checkout bff/AuctionEndpoints.cs` afterwards).
+   bid too and see the goose: `cp workshop/solution/AuctionEndpoints.Workshop.cs bff/` (or live-code it during the workshop,
+   and the projector reveals the goose to the room when you save; `git checkout bff/AuctionEndpoints.Workshop.cs` afterwards).
 
 2. **Prove the room can reach you.** From a *second* machine on the same network:
 
@@ -39,8 +39,8 @@ Everything you need to run the live auction on the day. The talk itself is in
 | When | What you run / do |
 | --- | --- |
 | Before people arrive | `docker compose --profile presenter up --build` (no bots). Check the IP again: venue DHCP may have changed it |
-| Workshop | Walk the room. Point anyone stuck at the next hint: `workshop/hints/1.md`, then `2.md`, then `3.md`. The lot is a mystery until each participant's `PlaceBid` works: then the cloth lifts on their screen and the Golden Goose appears, without a reload. Don't spoil it. Watch the server log: a veiled browser probes every 5s, so a participant's first `PlaceBid … code=InvalidArgument` from their IP means they just finished (the probe sends an empty bidder and places no bid), and `code=OK` follows with their first real bid |
-| End of the workshop | Not everyone finishes. Leave the catch-up line on the "One possible solution" slide up: `cp workshop/solution/AuctionEndpoints.cs bff/` |
+| Workshop | Walk the room. Point anyone stuck at the next hint: `workshop/hints/1.md`, then `2.md`, then `3.md`. The stub doesn't inject the gRPC client, so the most common snag is not knowing how to get `auction` into the lambda: hint 1 points at DI, hint 2 names the type. The lot is a mystery until each participant's `PlaceBid` works: then the cloth lifts on their screen and the Golden Goose appears, without a reload. Don't spoil it. Watch the server log: a veiled browser probes every 5s, so a participant's first `PlaceBid … code=InvalidArgument` from their IP means they just finished (the probe sends an empty bidder and places no bid), and `code=OK` follows with their first real bid |
+| End of the workshop | Not everyone finishes. Leave the catch-up line on the "One possible solution" slide up: `cp workshop/solution/AuctionEndpoints.Workshop.cs bff/` |
 | Live auction | Projector on the **stage view**, <http://localhost:8080/?view=stage>, in **polling** mode. Let the room bid for a round or two, and point at the room chart: calls per second, and how many found nothing new. The golden eggs drop in batches, one per poll. Switch the projector to 0.5s to show the polling dilemma. Then everyone flips to **streaming**: calls per second slope to zero, open streams climb, "bids seen after" drops to 0.00s, and the eggs drop one at a time. The chart keeps its 90s history when you flip the projector |
 | After the reveal | Leave the stage on streaming (`?view=stage&transport=stream`): its own polling would otherwise show up in the room load it displays |
 | Q&A | Leave the auction running |
@@ -73,7 +73,7 @@ port over plain TCP (no TLS).
 | --- | --- |
 | The contract | `proto/auction/v1/auction.proto` |
 | Codegen at build time | `<Protobuf>` item in `bff/Bff.csproj`; generated Go in `auction-server/gen/` (`buf generate`) |
-| Unary call + deadline | `GET /auction` in `bff/AuctionEndpoints.cs` |
+| Unary call + deadline | `GET /auction` in `bff/AuctionEndpoints.cs`; the exercise is `POST /bids` in `bff/AuctionEndpoints.Workshop.cs` |
 | gRPC status → HTTP | `bff/GrpcErrors.cs` |
 | Server streaming, Go side | `WatchAuction` in `auction-server/internal/auction/service.go` |
 | Stream translation to SSE | `GET /auction/stream` in `bff/AuctionEndpoints.cs` |
