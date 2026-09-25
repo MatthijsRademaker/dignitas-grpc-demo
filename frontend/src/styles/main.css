@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+/* `inline`: v0 scopes its variables to the element carrying data-theme (#app), so utilities
+   must reference them directly instead of through a variable resolved on :root. */
+@theme inline {
+  --color-primary: var(--v0-primary);
+  --color-on-primary: var(--v0-on-primary);
+  --color-surface: var(--v0-surface);
+  --color-on-surface: var(--v0-on-surface);
+  --color-background: var(--v0-background);
+  --color-muted: var(--v0-muted);
+  --color-border: var(--v0-border);
+  --color-success: var(--v0-success);
+  --color-warning: var(--v0-warning);
+  --color-error: var(--v0-error);
+  --color-gold-50: var(--v0-gold-50);
+  --color-gold-100: var(--v0-gold-100);
+  --color-gold-200: var(--v0-gold-200);
+  --color-gold-300: var(--v0-gold-300);
+  --color-gold-400: var(--v0-gold-400);
+  --color-gold-500: var(--v0-gold-500);
+  --color-gold-600: var(--v0-gold-600);
+  --color-gold-700: var(--v0-gold-700);
+  --color-gold-800: var(--v0-gold-800);
+  --color-gold-900: var(--v0-gold-900);
+  --color-bronze: var(--v0-bronze);
+}
+
+@theme {
+  --font-sans: "Nunito Sans Variable", "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces Variable", "Fraunces", ui-serif, Georgia, serif;
+  --font-mono: "Fira Code", ui-monospace, monospace;
+
+  --animate-pulse-closing: pulse-closing 1s ease-in-out infinite;
+  @keyframes pulse-closing {
+    50% { opacity: 0.55; }
+  }
+}
+
+/* The reveal: the nest follows the goose out from under the cloth. Only on reveal, never on page load. */
+.nest-in-enter-active {
+  animation: nest-in 0.6s 0.9s ease-out both;
+}
+@keyframes nest-in {
+  from { opacity: 0; transform: translateY(0.5rem); }
+}
+
+#app {
+  @apply min-h-screen bg-background text-on-surface font-sans antialiased;
+}
+
+@layer base {
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+  }
+
+  /* Everything that moves here is decoration or emphasis: with reduced motion, the shimmer,
+     the closing pulse, the SOLD burst, the rolling digits and the falling eggs all stop.
+     State changes still show, they just happen instantly. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      animation-delay: 0ms !important;
+      transition-duration: 0.01ms !important;
+      transition-delay: 0ms !important;
+    }
+    .motion-decoration {
+      display: none !important;
+    }
+  }
+}

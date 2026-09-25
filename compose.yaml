@@ -1,0 +1,41 @@
+# Participants (bff + frontend, pointed at the presenter's auction server):
+#   AUCTION_HOST=http://<presenter-ip>:50051 docker compose up --build --watch
+#
+# Presenter, or anyone running solo (adds the auction server itself). Leave AUCTION_HOST
+# unset or empty: the BFF then finds the auction-server container through Docker DNS.
+#   docker compose --profile presenter up --build
+#
+# Then open http://localhost:8080
+
+services:
+  auction-server:
+    profiles: [presenter]
+    build: ./auction-server
+    command: ["-bots=${AUCTION_BOTS:-0}"]
+    ports:
+      - "50051:50051"
+
+  bff:
+    build:
+      context: .
+      dockerfile: bff/Dockerfile
+    environment:
+      AUCTION_HOST: ${AUCTION_HOST:-}
+    depends_on:
+      # Only with `--profile presenter`: start the local server first, so the BFF can find it.
+      auction-server:
+        condition: service_started
+        required: false
+    develop:
+      # `--watch`: every save in bff/ rebuilds and restarts the BFF.
+      watch:
+        - action: rebuild
+          path: ./bff
+          ignore: [bin/, obj/]
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - bff

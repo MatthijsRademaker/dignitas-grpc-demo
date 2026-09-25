@@ -1,0 +1,17 @@
+/* Bundled by Vite, so nothing is fetched from the network at the venue. Latin subsets only:
+   the variable packages ship every subset, so these rules pick the Latin file themselves. */
+@font-face {
+  font-family: "Fraunces Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/fraunces/files/fraunces-latin-opsz-normal.woff2") format("woff2-variations");
+}
+
+@font-face {
+  font-family: "Nunito Sans Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 1000;
+  src: url("@fontsource-variable/nunito-sans/files/nunito-sans-latin-wght-normal.woff2") format("woff2-variations");
+}
