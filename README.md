@@ -22,6 +22,8 @@ browser ──HTTP/JSON, SSE──▶ BFF (.NET 10) ──gRPC──▶ auction-
 
 ## Quick start
 
+Participants: [`QUICKSTART.md`](QUICKSTART.md) is the pre-workshop setup, ready to post in a chat.
+
 ```bash
 # Participant: connect to the presenter's auction server
 cp .env.example .env          # set AUCTION_HOST=http://<presenter-ip>:50051

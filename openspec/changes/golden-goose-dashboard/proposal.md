@@ -24,6 +24,10 @@ turns the live auction into something the room remembers. The load chart makes t
   per-browser wire panel, and a room-load chart over time.
 - Frontend, stage view (`?view=stage`): a 1920×1080 projector layout with no bid form, large type, a room-load chart
   as the main element, a full-screen SOLD moment, and the transport toggle kept so the presenter can flip it.
+- **The reveal:** the goose is an inside joke, and finishing the workshop exercise unlocks it. Until this
+  browser's BFF implements `PlaceBid`, the lot is a veiled "mystery lot": a cloth instead of the artwork, no
+  name or description, no golden eggs, and no goose wording. Once `PlaceBid` works, the cloth lifts and the
+  Golden Goose appears, with no page reload. The raw JSON still says `golden-goose`, so a curious dev can find it early.
 - Golden duck SVG artwork, recoloured from an open-licensed duck emoji SVG, with gold gradients, a highlight
   and a shimmer. Also used as the favicon. Gold is used for artwork and decoration only, never for text.
 - Fonts bundled offline via `@fontsource` (display serif, Nunito Sans, Fira Code), so nothing is fetched from

@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { computed } from 'vue'
   import type { Bid } from '../api'
+  import Gavel from './Gavel.vue'
 
   const props = withDefaults(defineProps<{
     winner: Bid | null
@@ -8,7 +9,9 @@
     remainingMs: number
     round?: number
     size?: 'card' | 'fullscreen'
-  }>(), { size: 'card' })
+    /** `false` while the lot is still a mystery: no goose jokes yet. */
+    revealed?: boolean
+  }>(), { size: 'card', revealed: true })
 
   const seconds = computed(() => Math.ceil(props.remainingMs / 1000))
   const rays = Array.from({ length: 16 }, (_, i) => i * (360 / 16))
@@ -33,17 +36,7 @@
           />
         </svg>
 
-        <svg aria-hidden="true" class="gavel relative" viewBox="0 0 64 64">
-          <rect fill="#5c4300" height="6" rx="2" width="36" x="2" y="57" />
-          <g class="swing">
-            <g transform="translate(20 44) rotate(-33.7)">
-              <rect fill="#7a5a00" height="6" rx="3" width="42" x="2" y="-3" />
-              <rect fill="#c9971c" height="28" rx="3.5" stroke="#5c4300" stroke-width="1.5" width="14" x="-7" y="-14" />
-              <rect fill="#f6d77a" height="3" width="14" x="-7" y="-7" />
-              <rect fill="#f6d77a" height="3" width="14" x="-7" y="4" />
-            </g>
-          </g>
-        </svg>
+        <Gavel class="gavel relative" strike />
 
         <p v-if="round" class="relative font-bold text-bronze">Round {{ round }}</p>
         <p class="relative font-display text-[2.4em] leading-tight font-semibold">
@@ -52,7 +45,7 @@
       </template>
 
       <template v-else>
-        <p class="font-display text-[1.8em] leading-tight font-medium text-muted">The goose flew off, nobody bid</p>
+        <p class="font-display text-[1.8em] leading-tight font-medium text-muted">{{ revealed ? 'The goose flew off, nobody bid' : 'Unsold, nobody bid' }}</p>
       </template>
 
       <p class="relative text-[0.9em] text-muted tabular-nums">next round in {{ seconds }}s</p>
@@ -69,17 +62,6 @@
   }
   .gavel {
     width: 4.5em;
-  }
-  .swing {
-    transform-origin: 53px 22px;
-    animation: slam 0.7s cubic-bezier(0.3, 0, 0.4, 1) both;
-  }
-  @keyframes slam {
-    0% { transform: rotate(-38deg); }
-    55% { transform: rotate(5deg); }
-    70% { transform: rotate(-4deg); }
-    85% { transform: rotate(1deg); }
-    100% { transform: rotate(0); }
   }
   .burst {
     position: absolute;

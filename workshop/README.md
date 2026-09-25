@@ -1,19 +1,18 @@
-# Workshop: implement `PlaceBid`
+# Implement `PlaceBid`, step by step
 
-The presenter runs one central gRPC auction server. You run a frontend and a BFF (backend for
-frontend) on your own laptop. Your BFF already *reads* the auction over gRPC. Your job: let it
-*place bids*, so you can join the live auction.
+The presenter runs one gRPC auction server for the whole room. You run a frontend and a BFF (backend for
+frontend) on your laptop. Your BFF can already *read* the auction over gRPC. You'll teach it to *place bids*.
 
 ```
 browser ──HTTP/JSON──▶ your BFF (.NET) ──gRPC──▶ presenter's auction-server (Go)
          localhost:8080                           http://<presenter-ip>:50051
 ```
 
-**Timebox: 15 minutes.** Pairing is encouraged.
+About 15 minutes. Pairing welcome.
 
-## 0. Setup
+## 1. Connect
 
-You only need Docker (Compose 2.22 or newer, for `--watch`).
+Did the [quickstart](../QUICKSTART.md)? Then you only need the `.env` edit and the last line.
 
 ```bash
 git clone https://github.com/MatthijsRademaker/dignitas-grpc-demo.git && cd dignitas-grpc-demo
@@ -22,101 +21,83 @@ cp .env.example .env
 docker compose up --build --watch
 ```
 
-Open <http://localhost:8080>. You should see the Golden Goose on the block, with live bids.
-That already works: the prebuilt `GET /api/auction` endpoint makes a unary `GetAuction` gRPC call.
+Open <http://localhost:8080>: a mystery lot, under a cloth, with live bids. Reading already works through the
+prebuilt `GET /api/auction` endpoint, which makes a unary `GetAuction` call.
 
-Now try to place a bid. You'll get **"Workshop time"**. That's the part you build.
+Try to bid: **"Workshop time"**. That's the endpoint you're about to write.
 
-`--watch` rebuilds and restarts the BFF container every time you save a file in `bff/`. Give it
-a few seconds, then bid again.
+`--watch` rebuilds the BFF every time you save a file in `bff/`. Give it a few seconds after each save.
 
-## 1. Read the contract
+## 2. Read the contract
 
 Open [`proto/auction/v1/auction.proto`](../proto/auction/v1/auction.proto) and find:
 
 - the `PlaceBid` rpc on `AuctionService`
-- its request message, `PlaceBidRequest`: which fields, which types?
-- its response message, `PlaceBidResponse`
-- the comment above `PlaceBid` that says which gRPC status codes a rejected bid returns
+- `PlaceBidRequest`: which fields, which types?
+- `PlaceBidResponse`
+- the comment above `PlaceBid`: which gRPC status codes a rejected bid returns
 
-## 2. Find the generated client
+## 3. Find the generated client
 
-You never write the gRPC client yourself. `Grpc.Tools` generates it from the proto on every build
-(see the `<Protobuf>` item in [`bff/Bff.csproj`](../bff/Bff.csproj)).
+You don't write the gRPC client. `Grpc.Tools` generates it from the proto on every build (see the `<Protobuf>` item
+in [`bff/Bff.csproj`](../bff/Bff.csproj)).
 
-- **With the .NET SDK:** run `dotnet build` in `bff/`, then open
-  `bff/obj/Debug/net10.0/auction/v1/AuctionGrpc.cs` and look for `PlaceBidAsync`. Or type
-  `auction.` in your IDE and let autocomplete show you.
-- **Docker only:** trust the proto. Every `rpc Foo` becomes `FooAsync(...)` on the client, and
-  every message becomes a C# class with PascalCase properties (`lot_id` becomes `LotId`).
+- **With the .NET SDK:** run `dotnet build` in `bff/` and type `auction.` in your IDE, or look for `PlaceBidAsync`
+  in `bff/obj/Debug/net10.0/auction/v1/AuctionGrpc.cs`.
+- **Docker only:** trust the proto. Every `rpc Foo` becomes `FooAsync(...)`, and every message becomes a C# class
+  with PascalCase properties (`lot_id` becomes `LotId`).
 
-## 3. Implement the endpoint
+## 4. Write the endpoint
 
-Open [`bff/AuctionEndpoints.cs`](../bff/AuctionEndpoints.cs) and find the `WORKSHOP` block.
-`GET /auction`, right above it, is your template. It does the same thing for `GetAuction`.
+This is the challenge. Make `POST /bids` in [`bff/AuctionEndpoints.cs`](../bff/AuctionEndpoints.cs) place a real
+bid. `GET /auction`, right above it, is the same pattern for a different rpc.
 
-1. Build a `PlaceBidRequest` from `body`.
-2. `await auction.PlaceBidAsync(request, deadline: ..., cancellationToken: ct)`. Remember to make
-   the lambda `async`.
-3. Return `Results.Ok(AuctionDto.From(response.Auction))`.
-4. Catch `RpcException` and return `ex.ToProblem()`.
+You're done when:
 
-## 4. Try it
+- your bid shows up in the feed on **everyone's** screen
+- a bid that's too low shows the server's reason ("minimum bid is €…"), not a crash
+- the call can't hang forever if the server disappears
 
-- Bid on the goose. Your name should appear in the bid feed on **everyone's** screen.
-- Bid below the minimum. What does the frontend show?
+Stuck? Each hint gives away a bit more, so only open the next one:
 
-## Stretch goals
+1. [Where to look](hints/1.md): no code, just directions
+2. [The pieces](hints/2.md): each fragment on its own
+3. [The shape](hints/3.md): the whole endpoint, with blanks
 
-1. **Deadlines.** Set the deadline to 1 millisecond. Which gRPC status do you get, and what does
-   `GrpcErrors.cs` turn it into? (gRPC has no default timeout. Always set one.)
-2. **Status codes.** Bid too low, or with an empty name. Which gRPC codes come back, and which HTTP
-   codes does the browser see?
-3. **Talk to gRPC directly**, no BFF, no proto file. The server has reflection enabled:
+## 5. Bid
+
+Save, wait a few seconds, and bid. Keep an eye on the cloth.
+
+## Going further
+
+1. **Deadlines.** Set the deadline to 1 millisecond. Which gRPC status comes back, and what does `GrpcErrors.cs`
+   turn it into? (gRPC has no default timeout. Always set one.)
+2. **Status codes.** Bid too low, or with an empty name. Which gRPC codes come back, and which HTTP codes does the
+   browser see?
+3. **Talk gRPC directly**, no BFF and no proto file: the server has reflection enabled.
 
    ```bash
    docker run --rm fullstorydev/grpcurl -plaintext <presenter-ip>:50051 list
-   docker run --rm fullstorydev/grpcurl -plaintext <presenter-ip>:50051 describe auction.v1.PlaceBidRequest
+   docker run --rm fullstorydev/grpcurl -plaintext <presenter-ip>:50051 auction.v1.AuctionService/GetAuction
+   # take the lot id from that answer; €1 is too low on purpose
    docker run --rm fullstorydev/grpcurl -plaintext \
-     -d '{"lot_id":"golden-goose","bidder":"grpcurl","amount":1}' \
+     -d '{"lot_id":"<lot-id>","bidder":"grpcurl","amount":1}' \
      <presenter-ip>:50051 auction.v1.AuctionService/PlaceBid
    ```
 
-4. **Read the streaming side.** `GET /auction/stream` in the same file turns the `WatchAuction`
-   server stream into Server-Sent Events. How does cancellation reach the server when you close
-   the tab?
+4. **Read the streaming side.** `GET /auction/stream` in the same file turns the `WatchAuction` server stream into
+   Server-Sent Events. How does cancellation reach the server when you close the tab?
 
-## Troubleshooting
+## Out of time?
 
-| Symptom | Likely cause |
-| --- | --- |
-| BFF exits with `AUCTION_HOST is not set…` | `.env` is missing or has no `AUCTION_HOST` |
-| Page says "Connecting…" or shows `Unavailable` | Wrong IP or port in `AUCTION_HOST`, or the Wi-Fi blocks laptop-to-laptop traffic. Test with the `grpcurl … list` command above |
-| `DeadlineExceeded` on every call | Same as above: the server can't be reached in time |
-| Port 8080 already in use | Change `"8080:80"` in `compose.yaml` to e.g. `"8081:80"` |
-| `--watch` not recognised | Update Docker Compose, or rerun `docker compose up --build` after each save |
-
-## No Docker? Run it natively
-
-Needs the .NET 10 SDK and Node 22+.
-
-```bash
-cd bff && AUCTION_HOST=http://<presenter-ip>:50051 dotnet run   # http://localhost:5080
-cd frontend && npm ci && npm run dev                            # http://localhost:5173
-```
-
-## Solution
-
-Try it yourself first. The full file is in [`solution/AuctionEndpoints.cs`](solution/AuctionEndpoints.cs).
-
-**Out of time?** Copy it in so you can join the live auction:
+Try it yourself first. The full file is in [`solution/AuctionEndpoints.cs`](solution/AuctionEndpoints.cs). To catch
+up for the live auction:
 
 ```bash
 cp workshop/solution/AuctionEndpoints.cs bff/
 ```
 
-With `--watch` the BFF rebuilds by itself; give it a few seconds, then bid. Running natively?
-Stop `dotnet run` and start it again.
+`--watch` rebuilds the BFF by itself. Running natively? Restart `dotnet run`.
 
 <details>
 <summary>Show the solution</summary>
@@ -140,3 +121,22 @@ api.MapPost("/bids", async (PlaceBidBody body, AuctionService.AuctionServiceClie
 ```
 
 </details>
+
+## No Docker?
+
+Needs the .NET 10 SDK and Node 22+.
+
+```bash
+cd bff && AUCTION_HOST=http://<presenter-ip>:50051 dotnet run   # http://localhost:5080
+cd frontend && npm ci && npm run dev                            # http://localhost:5173
+```
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+| --- | --- |
+| BFF exits with `AUCTION_HOST is not set…` | `.env` is missing or has no `AUCTION_HOST` |
+| Page says "Connecting…" or shows `Unavailable` | Wrong IP or port in `AUCTION_HOST`, or the Wi-Fi blocks laptop-to-laptop traffic. Test with the `grpcurl … list` command above |
+| `DeadlineExceeded` on every call | Same as above: the server can't be reached in time |
+| Port 8080 already in use | Change `"8080:80"` in `compose.yaml` to e.g. `"8081:80"` |
+| `--watch` not recognised | Update Docker Compose, or rerun `docker compose up --build` after each save |

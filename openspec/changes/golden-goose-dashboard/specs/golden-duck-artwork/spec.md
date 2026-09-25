@@ -30,11 +30,16 @@ artwork component.
 - **THEN** the notice names the source project, the file and its licence
 
 ### Requirement: Favicon
-The page favicon SHALL be a static golden duck SVG, replacing the 🔨 emoji favicon.
+Once the lot is revealed, the page favicon SHALL be a static golden duck SVG. While it is veiled, the favicon SHALL be a
+gavel.
 
 #### Scenario: Browser tab
-- **WHEN** the app is open in a browser tab
+- **WHEN** the app is open in a browser tab and PlaceBid works
 - **THEN** the tab icon is the golden duck
+
+#### Scenario: Not done yet
+- **WHEN** the BFF still answers PlaceBid with 501
+- **THEN** the tab icon is a gavel
 
 ### Requirement: Gold is decoration, not text
 Gold tones SHALL be used only for artwork, borders, glows and other decoration. Any text in a gold family SHALL
@@ -43,3 +48,30 @@ use the bronze token, with a contrast of at least 4.5:1 against its background.
 #### Scenario: Contrast check
 - **WHEN** a gold-family colour is used for text
 - **THEN** it is the bronze token, and passes 4.5:1 on white and on the background colour
+
+### Requirement: The goose is unlocked by PlaceBid
+Until this browser's BFF implements PlaceBid, the lot SHALL be veiled: a cloth instead of the artwork, the title
+"A mystery lot", a description asking to implement PlaceBid, no egg nest, and no goose wording anywhere on the page. The
+frontend SHALL find out with a probe that cannot place a bid (`POST /api/bids` with an empty bidder). It SHALL reveal the
+lot when the probe comes back as 400 `InvalidArgument`, or when a bid succeeds. While veiled, it SHALL probe again every
+few seconds, and it SHALL reveal without a page reload. The auction server and the BFF JSON SHALL NOT change.
+
+#### Scenario: Workshop not done yet
+- **WHEN** a participant opens the dashboard and the BFF answers PlaceBid with 501
+- **THEN** the hero shows the cloth and "A mystery lot", and the words "goose" and "Golden Goose" appear nowhere on the page
+
+#### Scenario: Participant finishes the exercise
+- **WHEN** the participant saves a working PlaceBid and `--watch` restarts the BFF
+- **THEN** within a few seconds, without a reload, the cloth lifts and the Golden Goose appears
+
+#### Scenario: Probe places no bid
+- **WHEN** the probe runs
+- **THEN** the auction server rejects it with INVALID_ARGUMENT, and no bid is recorded
+
+#### Scenario: Reload after finishing
+- **WHEN** a participant who already revealed the goose reloads the page
+- **THEN** the goose shows right away, without the cloth flashing first
+
+#### Scenario: Reduced motion
+- **WHEN** `prefers-reduced-motion: reduce` is set and the lot is revealed
+- **THEN** the cloth is replaced by the duck with no animation

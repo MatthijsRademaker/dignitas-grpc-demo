@@ -38,3 +38,10 @@ When a round closes sold, the stage view SHALL show the SOLD moment across the w
 #### Scenario: Round closes on stage
 - **WHEN** a `LOT_CLOSED` event with a winner arrives
 - **THEN** the full-screen SOLD moment shows until `LOT_OPENED`
+
+### Requirement: Stage reveals like any other screen
+The stage view SHALL follow the same veil rule as the participant view, based on the presenter's own BFF.
+
+#### Scenario: Presenter applies the solution live
+- **WHEN** the presenter live-codes PlaceBid during the workshop
+- **THEN** the projector lifts the cloth and shows the Golden Goose to the room

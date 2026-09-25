@@ -4,6 +4,7 @@
   import BidFeed from '../components/BidFeed.vue'
   import Countdown from '../components/Countdown.vue'
   import EggNest from '../components/EggNest.vue'
+  import Gavel from '../components/Gavel.vue'
   import GoldenDuck from '../components/GoldenDuck.vue'
   import LotArt from '../components/LotArt.vue'
   import PriceTicker from '../components/PriceTicker.vue'
@@ -26,6 +27,7 @@
     eggs: Egg[]
     overflow: number
     samples: RoomSample[]
+    revealed: boolean
   }>()
   const transport = defineModel<Transport>('transport', { required: true })
   const pollIntervalMs = defineModel<number>('pollIntervalMs', { required: true })
@@ -51,7 +53,8 @@
     >
       <header class="flex items-center justify-between">
         <div class="flex items-center gap-4">
-          <GoldenDuck class="size-14" :shimmer="false" />
+          <GoldenDuck v-if="revealed" class="size-14" :shimmer="false" />
+          <Gavel v-else class="size-14" />
           <h1 class="font-display text-[2.4rem] font-semibold tracking-tight">gRPC Auction House</h1>
         </div>
         <TransportToggles v-model:poll-interval-ms="pollIntervalMs" v-model:transport="transport" quiet />
@@ -62,16 +65,19 @@
           <div class="grid h-full grid-cols-[520px_minmax(0,1fr)_400px] items-center gap-10 rounded-[2rem] border-2 border-gold-300 pr-12">
             <div class="flex h-full flex-col items-center justify-end rounded-l-[1.9rem] bg-[radial-gradient(circle_at_50%_40%,var(--v0-gold-50),var(--v0-surface)_70%)] px-8 pt-6">
               <div class="size-[290px]">
-                <LotArt :lot="auction.lot" :shimmer="auction.status === 'open'" />
+                <LotArt :lot="auction.lot" :shimmer="auction.status === 'open'" :veiled="!revealed" />
               </div>
-              <EggNest class="-mt-3" :eggs :overflow />
+              <Transition mode="out-in" name="nest-in">
+                <EggNest v-if="revealed" class="-mt-3" :eggs :overflow />
+                <p v-else class="pt-2 pb-6 text-center text-[1.5rem] text-muted">Implement PlaceBid to find out what's under the cloth.</p>
+              </Transition>
             </div>
 
             <div class="flex min-w-0 flex-col">
               <p v-if="auction.round" class="mb-3 self-start rounded-full border-2 border-gold-300 bg-gold-50 px-5 py-1 text-[1.75rem] font-bold text-bronze">
                 Round {{ auction.round }}
               </p>
-              <h2 class="font-display text-[4rem] leading-none font-semibold tracking-tight">{{ auction.lot.title }}</h2>
+              <h2 class="font-display text-[4rem] leading-none font-semibold tracking-tight">{{ revealed ? auction.lot.title : 'A mystery lot' }}</h2>
               <p class="mt-5 text-[1.75rem] font-bold text-muted">{{ auction.highestBid ? 'Highest bid' : 'Starting at' }}</p>
               <PriceTicker class="-my-1 text-[9.5rem] font-semibold" :value="price" />
               <p class="mt-1 truncate text-[2.25rem] text-muted">
@@ -95,7 +101,7 @@
           <TransportPanel :error :now :poll-interval-ms :stats :transport variant="compact" />
         </div>
 
-        <WinnersWall v-if="auction.winners" layout="strip" :winners="auction.winners" />
+        <WinnersWall v-if="auction.winners" layout="strip" :revealed :winners="auction.winners" />
       </template>
 
       <p v-else class="row-span-3 grid place-items-center text-[2.5rem]" :class="error ? 'font-bold text-error' : 'text-muted'">
@@ -107,6 +113,7 @@
           v-if="auction && auction.status !== 'open'"
           class="absolute inset-0 z-20"
           :remaining-ms
+          :revealed
           :round="auction.round"
           size="fullscreen"
           :winner="auction.status === 'sold' ? auction.highestBid : null"

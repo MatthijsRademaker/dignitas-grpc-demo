@@ -1,9 +1,10 @@
 <script setup lang="ts">
   import { computed, onMounted, shallowRef, watch } from 'vue'
-  import { getInfo } from './api'
+  import { getInfo, type Auction } from './api'
   import { DEFAULT_POLL_INTERVAL_MS, useAuctionFeed, type Transport } from './useAuctionFeed'
   import { useEggs } from './useEggs'
   import { useNow } from './useNow'
+  import { usePlaceBidReady } from './usePlaceBidReady'
   import { useRoomHistory } from './useRoomHistory'
   import ParticipantView from './views/ParticipantView.vue'
   import StageView from './views/StageView.vue'
@@ -20,12 +21,23 @@
   const { auction, receivedAt, error, stats, seenAfter, onNewBids, apply } = useAuctionFeed(transport, pollIntervalMs)
   const samples = useRoomHistory(auction)
   const { eggs, overflow } = useEggs(auction, onNewBids)
+  // The goose is an inside joke: it stays under a cloth until this browser's BFF implements PlaceBid.
+  const { revealed, markReady } = usePlaceBidReady()
   const now = useNow()
   const remainingMs = computed(() =>
     auction.value ? Math.max(0, auction.value.remainingMs - (now.value - receivedAt.value)) : 0,
   )
 
   watch(bidder, name => localStorage.setItem('auction:bidder', name))
+  watch(revealed, value => {
+    document.querySelector<HTMLLinkElement>('link[rel="icon"]')!.href = value ? '/favicon.svg' : '/favicon-gavel.svg'
+  }, { immediate: true })
+
+  function placed (next: Auction) {
+    markReady()
+    apply(next)
+  }
+
   onMounted(async () => {
     if (view === 'participant') auctionHost.value = (await getInfo()).auctionHost
   })
@@ -42,6 +54,7 @@
     :now
     :overflow
     :remaining-ms
+    :revealed
     :samples
     :seen-after
     :stats
@@ -58,9 +71,10 @@
     :now
     :overflow
     :remaining-ms
+    :revealed
     :samples
     :seen-after
     :stats
-    @placed="apply"
+    @placed="placed"
   />
 </template>

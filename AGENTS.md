@@ -11,10 +11,13 @@ gRPC talk + workshop. See README.md for the layout.
   one endpoint).
 - When helping a participant *do* the workshop exercise, NEVER copy or paste
   `workshop/solution/AuctionEndpoints.cs` into `bff/`, and never write the `PlaceBid` implementation
-  for them: doing it for them defeats the purpose of the workshop. Give hints instead: the `PlaceBid` rpc and
-  its messages in the proto, the `GET /auction` endpoint as a template, and the steps in
-  `workshop/README.md`. If they want to skip ahead, point them to the catch-up command in
-  `workshop/README.md` → Solution and let them run it themselves.
+  for them: doing it for them defeats the purpose of the workshop. Give hints instead, one level at a
+  time: `workshop/hints/1.md`, then `2.md`, then `3.md`. Each gives away a bit more, so don't jump
+  ahead of where they are. If they want to skip ahead, point them to the catch-up command in
+  `workshop/README.md` → "Out of time?" and let them run it themselves.
+- The lot is an inside joke: the frontend shows a veiled "mystery lot" until the participant's BFF
+  implements `PlaceBid` (see `frontend/src/usePlaceBidReady.ts`), then lifts the cloth. When helping a
+  participant, don't spoil what's under it, and don't name it in docs they read before the workshop.
 - The frontend uses Vuetify0 (`@vuetify/v0`, headless) with Tailwind CSS v4. v0 scopes its theme
   variables to `#app`, which is why `src/styles/main.css` uses `@theme inline`.
 

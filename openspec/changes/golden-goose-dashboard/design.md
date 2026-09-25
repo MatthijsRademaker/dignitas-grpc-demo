@@ -162,6 +162,30 @@ pulse and burst are off, digits change instantly, and eggs appear without fallin
 - **Skeleton** versions of the hero, feed and chart replace "Connecting to the auction…", and the
   error text still shows when the connection fails.
 
+### D11. The goose is unlocked by PlaceBid
+
+Each browser asks its own BFF whether `PlaceBid` works, with a probe that can never place a bid:
+`POST /api/bids` with an empty bidder. The workshop stub answers 501. A finished BFF passes the call on,
+and the auction server rejects the empty bidder with `INVALID_ARGUMENT`, which `ToProblem()` turns into
+400 with the title `InvalidArgument`. Only that answer reveals the goose, because it proves the call reached the server. A
+successful real bid reveals it too, so an implementation without error handling (500 on the probe)
+still gets there with its first bid.
+
+The probe runs on page load and every 5s while the lot is veiled, and stops once it is revealed. `--watch` restarts the BFF on
+save, so the reveal happens a few seconds after the participant's fix, with no reload. The last result is
+kept in `localStorage`, so a finished participant doesn't see the cloth flash on every reload. The probe on
+load still corrects it (for example after `git checkout bff/AuctionEndpoints.cs`).
+
+While veiled: `LotArt` shows a draped cloth (`VeiledLot.vue`), the title is "A mystery lot", and the
+description tells you to implement `PlaceBid`. The egg nest is hidden. Goose wording (the winners heading, the unsold copy) is
+neutral, and the header and favicon show a gavel. The reveal lifts the cloth off, and the duck scales in
+and starts to shimmer. With reduced motion, it simply swaps. The stage view uses the same rule, so the presenter's projector reveals once the solution is
+applied. The auction server and the JSON are unchanged. The secret is in the frontend only, and a dev who looks at
+DevTools or grpcurl finds it early. That's fine for an inside joke.
+
+*Alternative:* a new RPC or flag that reports whether the BFF is implemented. Rejected because it would change the contract and the
+exercise. The probe needs nothing new.
+
 ## Risks / Trade-offs
 
 - [Recoloured Noto duck looks muddy on a projector] → Tune the gradient on the real projector during
@@ -175,6 +199,8 @@ pulse and burst are off, digits change instantly, and eggs appear without fallin
   still well under 300 KB.
 - [Hand-rolled SVG charts need extra care with accessibility] → Each panel has an `aria-label` with the current value and a
   visible text value, and colour is never the only signal.
+- [Veiled browsers probe every 5s, which adds `PlaceBid … code=InvalidArgument` lines to the server log] → They stop
+  at the reveal, and the first of those lines is a nice signal in the presenter's log that a participant just finished.
 - [Winners are lost on server restart] → Acceptable for a talk. The wall simply starts empty again.
 
 ## Migration Plan

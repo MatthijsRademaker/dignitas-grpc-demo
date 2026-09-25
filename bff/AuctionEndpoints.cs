@@ -28,14 +28,9 @@ public static class AuctionEndpoints
         });
 
         // ------------------------------------------------------------------------------------------
-        // WORKSHOP: implement PlaceBid. The frontend POSTs { lotId, bidder, amount } here.
-        //
-        //   1. Build a PlaceBidRequest from `body`.
-        //   2. await auction.PlaceBidAsync(request, deadline: ..., cancellationToken: ct)
-        //   3. Return Results.Ok(AuctionDto.From(response.Auction)).
-        //   4. Catch RpcException and return ex.ToProblem(), just like GET /auction above.
-        //
-        // Stuck? See workshop/README.md.
+        // WORKSHOP: make this place a real bid. The frontend POSTs { lotId, bidder, amount } here.
+        // GET /auction above is your template. When you're done, and hints if you're stuck:
+        // workshop/README.md, step 4.
         // ------------------------------------------------------------------------------------------
         api.MapPost("/bids", (PlaceBidBody body, AuctionService.AuctionServiceClient auction, CancellationToken ct) =>
         {

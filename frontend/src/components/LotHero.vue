@@ -8,7 +8,7 @@
   import PriceTicker from './PriceTicker.vue'
   import SoldMoment from './SoldMoment.vue'
 
-  const props = defineProps<{ auction: Auction, remainingMs: number, eggs: Egg[], overflow: number }>()
+  const props = defineProps<{ auction: Auction, remainingMs: number, eggs: Egg[], overflow: number, revealed: boolean }>()
 
   const price = computed(() => props.auction.highestBid?.amount ?? props.auction.lot.startingPrice)
 </script>
@@ -19,9 +19,12 @@
     <div class="grid rounded-[1.35rem] border border-gold-300 sm:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
       <div class="flex flex-col items-center justify-end rounded-t-[1.3rem] bg-[radial-gradient(circle_at_50%_40%,var(--v0-gold-50),var(--v0-surface)_70%)] px-4 pt-6 sm:rounded-l-[1.3rem] sm:rounded-tr-none">
         <div class="aspect-square w-[70%] max-w-64">
-          <LotArt :lot="auction.lot" :shimmer="auction.status === 'open'" />
+          <LotArt :lot="auction.lot" :shimmer="auction.status === 'open'" :veiled="!revealed" />
         </div>
-        <EggNest class="-mt-2" :eggs :overflow />
+        <Transition mode="out-in" name="nest-in">
+          <EggNest v-if="revealed" class="-mt-2" :eggs :overflow />
+          <div v-else class="h-6" />
+        </Transition>
       </div>
 
       <div class="flex flex-col gap-5 p-6 sm:py-8 sm:pr-8">
@@ -29,8 +32,14 @@
           <p v-if="auction.round" class="mb-2 inline-block rounded-full border border-gold-300 bg-gold-50 px-3 py-0.5 text-sm font-bold text-bronze">
             Round {{ auction.round }}
           </p>
-          <h2 class="font-display text-4xl leading-tight font-semibold tracking-tight">{{ auction.lot.title }}</h2>
-          <p class="mt-2 max-w-prose text-muted">{{ auction.lot.description }}</p>
+          <template v-if="revealed">
+            <h2 class="font-display text-4xl leading-tight font-semibold tracking-tight">{{ auction.lot.title }}</h2>
+            <p class="mt-2 max-w-prose text-muted">{{ auction.lot.description }}</p>
+          </template>
+          <template v-else>
+            <h2 class="font-display text-4xl leading-tight font-semibold tracking-tight">A mystery lot</h2>
+            <p class="mt-2 max-w-prose text-muted">Something is under the cloth. Implement PlaceBid in bff/AuctionEndpoints.cs to find out what you are bidding on.</p>
+          </template>
         </div>
 
         <div class="mt-auto flex items-end justify-between gap-6">
@@ -62,6 +71,7 @@
         v-if="auction.status !== 'open'"
         class="absolute inset-0"
         :remaining-ms
+        :revealed
         :round="auction.round"
         :winner="auction.status === 'sold' ? auction.highestBid : null"
       />

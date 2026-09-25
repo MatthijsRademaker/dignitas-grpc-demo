@@ -5,6 +5,8 @@
   const props = defineProps<{ eggs: Egg[], overflow: number }>()
 
   const id = useId()
+  // Eggs that are already here when the nest appears (page load, or the reveal) sit still: only new ones fall.
+  const settled = new Set(props.eggs.map(egg => egg.key))
   const total = computed(() => props.eggs.length + props.overflow)
   const label = computed(() => total.value === 0
     ? 'An empty nest: no bids yet this round'
@@ -26,7 +28,7 @@
     </svg>
 
     <ol class="flex h-[19cqi] flex-wrap-reverse content-start items-end justify-center gap-x-[0.6cqi] px-[14cqi]">
-      <li v-for="egg in eggs" :key="egg.key" class="egg" :class="egg.dropped && 'dropped'">
+      <li v-for="egg in eggs" :key="egg.key" class="egg" :class="egg.dropped && !settled.has(egg.key) && 'dropped'">
         <svg class="block size-full" viewBox="0 0 30 38">
           <path d="M15 1C7 1 1 13 1 23c0 8 6 14 14 14s14-6 14-14C29 13 23 1 15 1z" :fill="`url(#${id}-egg)`" stroke="#7a5a00" stroke-width="1.2" />
           <ellipse cx="10" cy="12" fill="#fffdf5" opacity="0.7" rx="3" ry="5" transform="rotate(20 10 12)" />
@@ -60,7 +62,7 @@
     margin-bottom: 0.2cqi;
     transform-origin: 50% 100%;
   }
-  /* Laid by the goose above: a fall, a squash, and two little bounces. */
+  /* Laid from above: a fall, a squash, and two little bounces. */
   .dropped {
     animation: drop 0.95s cubic-bezier(0.5, 0, 0.75, 0) both;
   }

@@ -1,14 +1,15 @@
 <script setup lang="ts">
   import type { Sale } from '../api'
 
-  withDefaults(defineProps<{ winners: Sale[], layout?: 'list' | 'strip' }>(), { layout: 'list' })
+  withDefaults(defineProps<{ winners: Sale[], layout?: 'list' | 'strip', revealed?: boolean }>(), { layout: 'list', revealed: true })
 </script>
 
 <template>
   <section :class="layout">
-    <h3 class="heading font-bold">Owners of the goose</h3>
+    <h3 class="heading font-bold">{{ revealed ? 'Owners of the goose' : 'Previous winners' }}</h3>
     <p v-if="winners.length === 0" class="text-muted">
-      Nobody has taken the goose home yet. Win this round and your name goes up here first.
+      {{ revealed ? 'Nobody has taken the goose home yet.' : 'Nobody has won a round yet.' }}
+      Win this round and your name goes up here first.
     </p>
     <ol v-else class="entries">
       <li v-for="sale in winners" :key="sale.round" class="entry">

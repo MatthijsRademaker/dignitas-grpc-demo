@@ -71,3 +71,14 @@
 - [ ] 9.4 With the network disconnected (no internet): fonts still render; DevTools shows no external requests
 - [x] 9.5 With reduced motion emulated in DevTools: no animations
 - [ ] 9.6 Screenshot both views on the real projector during rehearsal, and tune the gold gradient if it looks muddy
+
+## 10. The reveal
+
+- [x] 10.1 Update the proposal, design (D11) and specs for the PlaceBid-unlocked goose
+- [x] 10.2 `usePlaceBidReady`: the probe (`POST /api/bids` with an empty bidder, reveal on 400 `InvalidArgument`), repeated every 5s while veiled, `localStorage` cache, and `markReady()` for a successful bid
+- [x] 10.3 `VeiledLot.vue` (a draped cloth) and a lift-off reveal in `LotArt.vue`; honour reduced motion
+- [x] 10.4 Veiled copy: title, description, no nest, neutral winners and unsold wording, gavel in the header (extract `Gavel.vue` from `SoldMoment`)
+- [x] 10.5 Gavel favicon by default in `index.html`, swapped to the golden duck on reveal
+- [x] 10.6 Both views and `BidPanel` wired to `revealed` / `markReady`
+- [x] 10.7 Docs: `workshop/README.md` ("a mystery lot"), the codegen slide's `LotId` no longer spoils the name, `PRESENTER.md` (the reveal moment, the probe in the server log)
+- [x] 10.8 Verify: veiled against the stub BFF (no "goose" on the page), a reveal without reload when the BFF gains PlaceBid, no bid recorded by the probe, no cloth flash on reload; `npm run build` passes

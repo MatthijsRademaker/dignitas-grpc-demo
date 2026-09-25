@@ -3,6 +3,7 @@
   import BidFeed from '../components/BidFeed.vue'
   import BidPanel from '../components/BidPanel.vue'
   import DashboardSkeleton from '../components/DashboardSkeleton.vue'
+  import Gavel from '../components/Gavel.vue'
   import GoldenDuck from '../components/GoldenDuck.vue'
   import LotHero from '../components/LotHero.vue'
   import RoomChart from '../components/RoomChart.vue'
@@ -24,6 +25,7 @@
     overflow: number
     samples: RoomSample[]
     auctionHost: string
+    revealed: boolean
   }>()
   const emit = defineEmits<{ placed: [auction: Auction] }>()
   const transport = defineModel<Transport>('transport', { required: true })
@@ -35,7 +37,8 @@
   <div class="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-6 sm:px-6 lg:py-8">
     <header class="flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-3">
-        <GoldenDuck class="size-11" :shimmer="false" />
+        <GoldenDuck v-if="revealed" class="size-11" :shimmer="false" />
+        <Gavel v-else class="size-11" />
         <div>
           <h1 class="font-display text-2xl leading-tight font-semibold tracking-tight">gRPC Auction House</h1>
           <p class="text-sm text-muted">
@@ -53,7 +56,7 @@
     <!-- On small screens the left column dissolves, so the bid form can sit right under the hero. -->
     <main v-else class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <div class="contents lg:col-start-1 lg:row-start-1 lg:flex lg:min-w-0 lg:flex-col lg:gap-10">
-        <LotHero class="order-1" :auction :eggs :overflow :remaining-ms />
+        <LotHero class="order-1" :auction :eggs :overflow :remaining-ms :revealed />
 
         <div class="order-3 grid gap-8 md:grid-cols-2">
           <BidFeed :bids="auction.recentBids.slice(0, 8)" :me="bidder.trim()" :seen-after />
@@ -62,7 +65,7 @@
 
         <div class="order-3 grid gap-8 md:grid-cols-[minmax(0,1fr)_16rem]">
           <RoomChart :load="auction.load" :now :samples />
-          <WinnersWall v-if="auction.winners" :winners="auction.winners" />
+          <WinnersWall v-if="auction.winners" :revealed :winners="auction.winners" />
         </div>
       </div>
 
