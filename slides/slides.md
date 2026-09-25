@@ -1,5 +1,5 @@
 ---
-#theme: '@dignitas/slidev-theme'
+theme: '@dignitas/slidev-theme'
 title: "gRPC Auction House"
 info: |
   ## gRPC Auction House
